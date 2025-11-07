@@ -3,10 +3,10 @@
 Provides Prometheus metrics, health checks, FFmpeg monitoring, and auto-recovery.
 """
 
-from monitoring.auto_recovery import AutoRecovery
-from monitoring.ffmpeg_monitor import FFmpegMonitor
-from monitoring.health_checks import HealthChecker
-from monitoring.metrics import MetricsExporter
+from .auto_recovery import AutoRecovery
+from .ffmpeg_monitor import FFmpegMonitor
+from .health_checks import HealthChecker
+from .metrics import MetricsExporter
 
 __all__ = [
     "MetricsExporter",

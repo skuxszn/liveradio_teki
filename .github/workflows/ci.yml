@@ -7,6 +7,11 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:  # Allow manual triggering
 
+permissions:
+  contents: read
+  security-events: write  # For uploading SARIF results
+  actions: read
+
 env:
   PYTHON_VERSION: '3.11'
   POSTGRES_VERSION: '15'
@@ -245,7 +250,7 @@ jobs:
     
     - name: Test docker-compose configuration
       run: |
-        docker-compose -f docker-compose.test.yml config
+        docker compose -f docker-compose.test.yml config
 
   # Load tests (only on main branch or manual trigger)
   load-tests:
@@ -271,7 +276,7 @@ jobs:
     
     - name: Start test services
       run: |
-        docker-compose -f docker-compose.test.yml up -d
+        docker compose -f docker-compose.test.yml up -d
         sleep 30  # Wait for services to be ready
     
     - name: Run load tests
@@ -295,7 +300,7 @@ jobs:
     - name: Stop test services
       if: always()
       run: |
-        docker-compose -f docker-compose.test.yml down -v
+        docker compose -f docker-compose.test.yml down -v
 
   # Security scan
   security:

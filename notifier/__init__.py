@@ -22,8 +22,8 @@ Example:
     )
 """
 
-from notifier.config import NotificationConfig, NotificationType
-from notifier.notifier import Notifier
+from .config import NotificationConfig, NotificationType
+from .notifier import Notifier
 
 __version__ = "1.0.0"
 __all__ = ["Notifier", "NotificationConfig", "NotificationType"]

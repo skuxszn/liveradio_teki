@@ -25,10 +25,10 @@ Date: November 5, 2025
 Version: 1.0.0
 """
 
-from advanced.config import AdvancedConfig
-from advanced.dual_input_ffmpeg import DualInputFFmpegManager
-from advanced.filter_graph_builder import FilterGraphBuilder
-from advanced.input_switcher import InputSwitcher
+from .config import AdvancedConfig
+from .dual_input_ffmpeg import DualInputFFmpegManager
+from .filter_graph_builder import FilterGraphBuilder
+from .input_switcher import InputSwitcher
 
 __version__ = "1.0.0"
 __all__ = [

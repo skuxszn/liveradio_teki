@@ -18,9 +18,9 @@ Example:
     ... }, "/srv/loops/track.mp4", 12345)
 """
 
-from logging_module.config import LoggingConfig
-from logging_module.logger import RadioLogger, JsonFormatter
-from logging_module.analytics import Analytics
+from .config import LoggingConfig
+from .logger import RadioLogger, JsonFormatter
+from .analytics import Analytics
 
 __version__ = "1.0.0"
 __all__ = ["RadioLogger", "Analytics", "LoggingConfig", "JsonFormatter"]

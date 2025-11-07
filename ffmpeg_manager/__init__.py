@@ -11,10 +11,10 @@ Status: In Development
 __version__ = "1.0.0"
 __author__ = "24/7 Radio Stream Project"
 
-from ffmpeg_manager.command_builder import FFmpegCommandBuilder
-from ffmpeg_manager.config import FFmpegConfig, EncodingPreset
-from ffmpeg_manager.log_parser import FFmpegLogParser
-from ffmpeg_manager.process_manager import FFmpegProcessManager
+from .command_builder import FFmpegCommandBuilder
+from .config import FFmpegConfig, EncodingPreset
+from .log_parser import FFmpegLogParser
+from .process_manager import FFmpegProcessManager
 
 __all__ = [
     "FFmpegCommandBuilder",

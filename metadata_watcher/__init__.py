@@ -10,8 +10,8 @@ Version: 1.0.0
 __version__ = "1.0.0"
 __author__ = "SHARD-2 Development Team"
 
-from config import Config
-from ffmpeg_manager import FFmpegManager
-from track_resolver import TrackResolver
+from .config import Config
+from .ffmpeg_manager import FFmpegManager
+from .track_resolver import TrackResolver
 
 __all__ = ["Config", "FFmpegManager", "TrackResolver"]

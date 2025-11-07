@@ -14,10 +14,10 @@ import aiohttp
 from fastapi import FastAPI, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from config import Config
-from config_fetcher import ConfigFetcher
-from ffmpeg_manager import FFmpegManager
-from track_resolver import TrackResolver
+from .config import Config
+from .config_fetcher import ConfigFetcher
+from .ffmpeg_manager import FFmpegManager
+from .track_resolver import TrackResolver
 
 # Configure logging
 logging.basicConfig(
@@ -150,7 +150,7 @@ async def on_config_change(new_config: Config, changed_keys: list):
         new_config: New configuration object.
         changed_keys: List of keys that changed.
     """
-    global config, ffmpeg_manager, track_resolver
+    global config
 
     logger.info(f"Configuration updated: {', '.join(changed_keys)}")
 
