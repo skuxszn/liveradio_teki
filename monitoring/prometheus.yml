@@ -36,14 +36,8 @@ scrape_configs:
     metrics_path: '/metrics'
     scrape_interval: 10s
 
-  # nginx-rtmp statistics
-  - job_name: 'nginx-rtmp'
-    static_configs:
-      - targets: ['nginx-rtmp:8080']
-        labels:
-          service: 'nginx-rtmp'
-    metrics_path: '/stat'
-    scrape_interval: 30s
+  # nginx-rtmp metrics: disabled (XML stats are not Prometheus format)
+  # To enable, add an exporter and point this job at it.
 
   # PostgreSQL exporter (if added later)
   - job_name: 'postgres'

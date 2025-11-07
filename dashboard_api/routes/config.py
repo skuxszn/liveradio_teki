@@ -1,6 +1,7 @@
 """Configuration management routes."""
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+import ipaddress
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
@@ -45,6 +46,24 @@ async def export_settings_internal(request: Request, db: Session = Depends(get_d
 
     if not expected_token or provided_token != expected_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API token")
+
+    # Enforce internal network access only (Docker network/localhost/private ranges)
+    client_ip = request.client.host if request.client else None
+    if not client_ip:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    try:
+        ip_obj = ipaddress.ip_address(client_ip)
+        private_ok = (
+            ip_obj.is_loopback
+            or ip_obj.is_private
+            or ip_obj in ipaddress.ip_network("172.16.0.0/12")
+        )
+    except Exception:
+        private_ok = False
+
+    if not private_ok:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Internal access only")
 
     # Fetch all settings from database
     settings = db.query(Setting).all()

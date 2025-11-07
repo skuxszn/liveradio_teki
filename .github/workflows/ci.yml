@@ -1,3 +1,169 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, integration/** ]
+  pull_request:
+    branches: [ main, integration/** ]
+
+permissions:
+  contents: read
+
+env:
+  PIP_CACHE_DIR: ./.pip-cache
+
+jobs:
+  python-checks:
+    name: Python Lint + Type Check (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [ dashboard_api, metadata_watcher, track_mapper ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PIP_CACHE_DIR }}
+          key: ${{ runner.os }}-pip-${{ hashFiles(matrix.service + '/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install deps + tooling
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f "${{ matrix.service }}/requirements.txt" ]; then pip install -r "${{ matrix.service }}/requirements.txt"; fi
+          pip install ruff black isort mypy
+
+      - name: Ruff (lint)
+        run: ruff check ${{ matrix.service }}
+
+      - name: Black (format check)
+        run: black --check ${{ matrix.service }}
+
+      - name: isort (imports)
+        run: isort --check-only ${{ matrix.service }}
+
+      - name: mypy (types)
+        run: mypy --ignore-missing-imports ${{ matrix.service }}
+
+  node-ui:
+    name: Dashboard UI Build + Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Lint (if configured)
+        run: |
+          if jq -e '.scripts.lint' package.json >/dev/null 2>&1; then npm run lint; else echo "no lint script"; fi
+      - name: Build
+        run: npm run build
+
+  docker-validate:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Validate docker compose config
+        run: docker compose -f docker-compose.yml config
+      - name: Build dashboard-api
+        run: docker build -t test-dashboard-api -f dashboard_api/Dockerfile dashboard_api
+      - name: Build metadata-watcher
+        run: docker build -t test-metadata-watcher -f metadata_watcher/Dockerfile .
+      - name: Build nginx-rtmp
+        run: docker build -t test-nginx-rtmp -f nginx-rtmp/Dockerfile nginx-rtmp
+      - name: Build dashboard-ui
+        run: docker build -t test-dashboard-ui -f dashboard/Dockerfile dashboard
+
+  compose-integration:
+    name: Compose Integration Boot
+    runs-on: ubuntu-latest
+    # Run independently so builds validate even if linters fail
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ffmpeg and curl
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg curl jq
+
+      - name: Start compose
+        env:
+          POSTGRES_USER: radio
+          POSTGRES_PASSWORD: radio_password
+          POSTGRES_DB: radio_db
+          API_TOKEN: ci-internal-token
+          JWT_SECRET: ci-jwt-secret
+          AZURACAST_URL: http://localhost
+          AZURACAST_API_KEY: dummy
+          AZURACAST_AUDIO_URL: http://ice1.somafm.com/groovesalad-128-mp3
+          LOG_LEVEL: INFO
+          DEBUG: 'false'
+          ENVIRONMENT: ci
+        run: |
+          docker compose -f docker-compose.yml up -d --build
+          echo "Waiting for services..."
+          for i in $(seq 1 60); do
+            DASH=$(curl -sf http://localhost:9001/health || true)
+            WATCH=$(curl -sf http://localhost:9000/health || true)
+            PROM=$(curl -sf http://localhost:9090/-/healthy || true)
+            if echo "$DASH" | grep -q '"status"\s*:\s*"healthy"' && [ -n "$WATCH" ] && echo "$PROM" | grep -q 'OK'; then
+              echo "Services are healthy"; break; fi
+            sleep 2
+            if [ $i -eq 60 ]; then echo "Timeout waiting for services"; docker compose ps; exit 1; fi
+          done
+          curl -sf http://localhost:9001/health | jq .
+          curl -sf http://localhost:9000/health | jq .
+
+      - name: Exercise minimal flow (login + export config)
+        run: |
+          ACCESS=$(curl -sf -H 'Content-Type: application/json' -d '{"username":"admin","password":"admin123"}' http://localhost:9001/api/v1/auth/login | jq -r .access_token)
+          test -n "$ACCESS"
+          curl -sf -H "Authorization: Bearer ci-internal-token" http://localhost:9001/api/v1/config/internal/export | head -c 200
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.yml down -v
+
+  security:
+    name: Security (pip-audit / npm audit)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: pip-audit
+        run: |
+          python -m pip install --upgrade pip pip-audit || true
+          for req in dashboard_api/requirements.txt metadata_watcher/requirements.txt track_mapper/requirements.txt; do
+            [ -f "$req" ] && pip-audit -r "$req" || true;
+          done
+      - name: npm audit
+        working-directory: dashboard
+        run: |
+          npm ci || true
+          npm audit --omit=dev || true
+
 name: CI/CD Pipeline
 
 on:

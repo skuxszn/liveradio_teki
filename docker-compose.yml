@@ -30,8 +30,8 @@ services:
   # metadata-watcher: Python service that watches AzuraCast webhooks
   metadata-watcher:
     build:
-      context: ./metadata_watcher
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: metadata_watcher/Dockerfile
     container_name: radio_metadata_watcher
     ports:
       - "${WATCHER_PORT:-9000}:9000"
@@ -53,13 +53,14 @@ services:
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - WEBHOOK_SECRET=${WEBHOOK_SECRET}
-      - DEFAULT_LOOP=${DEFAULT_LOOP}
+      - DEFAULT_LOOP=/app/loops/default.mp4
       - VIDEO_RESOLUTION=${VIDEO_RESOLUTION:-1280:720}
       - VIDEO_BITRATE=${VIDEO_BITRATE:-3000k}
       - VIDEO_ENCODER=${VIDEO_ENCODER:-libx264}
       - FFMPEG_PRESET=${FFMPEG_PRESET:-ultrafast}
     volumes:
       - ./loops:/app/loops:ro  # Read-only access to video loops
+      - ./loops:/srv/loops:ro  # Ensure default_config path is valid
       - ./logos:/app/logos:ro  # Read-only access to logo files for watermark
       - radio_logs:/var/log/radio  # Named volume for logs with correct permissions
       - stream-control:/app/stream:rw  # Shared volume for dashboard integration
@@ -89,7 +90,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./track_mapper/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
-      - ./logging_module/schema.sql:/docker-entrypoint-initdb.d/02_logging_schema.sql:ro
+      # logging_module schema removed as module is non-canonical
+      - ./dashboard_api/schema.sql:/docker-entrypoint-initdb.d/03_dashboard_schema.sql:ro
     networks:
       - radio_network
     restart: unless-stopped
@@ -123,6 +125,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
 
   # dashboard-api: Dashboard backend API
   dashboard-api:

@@ -194,46 +194,62 @@ INSERT INTO dashboard_users (username, email, password_hash, full_name, role) VA
     ('admin', 'admin@localhost', '$2b$12$RhP3bjQYvakgEZlsxf5nG.oGx8o8j2uwjFcGzNnvX.eNrJiZBexHe', 'Administrator', 'admin')
 ON CONFLICT (username) DO NOTHING;
 
--- Seed default settings
-INSERT INTO dashboard_settings (category, key, value_type, description, is_required, is_secret, default_value) VALUES
+-- Seed default settings with complete configuration including dropdown values
+INSERT INTO dashboard_settings (category, key, value_type, description, is_required, is_secret, default_value, allowed_values, validation_min, validation_max, requires_restart) VALUES
     -- Stream settings
-    ('stream', 'YOUTUBE_STREAM_KEY', 'secret', 'YouTube live stream key', TRUE, TRUE, ''),
-    ('stream', 'AZURACAST_URL', 'url', 'AzuraCast instance URL', TRUE, FALSE, ''),
-    ('stream', 'AZURACAST_API_KEY', 'secret', 'AzuraCast API key', TRUE, TRUE, ''),
-    ('stream', 'AZURACAST_AUDIO_URL', 'url', 'Direct audio stream URL', TRUE, FALSE, ''),
+    ('stream', 'YOUTUBE_STREAM_KEY', 'secret', 'YouTube live stream key from YouTube Studio', TRUE, TRUE, '', NULL, NULL, NULL, TRUE),
+    ('stream', 'AZURACAST_URL', 'url', 'AzuraCast server URL', TRUE, FALSE, 'http://localhost', NULL, NULL, NULL, TRUE),
+    ('stream', 'AZURACAST_API_KEY', 'secret', 'AzuraCast API key for metadata fetching', TRUE, TRUE, '', NULL, NULL, NULL, TRUE),
+    ('stream', 'AZURACAST_AUDIO_URL', 'url', 'Direct audio stream URL from AzuraCast', TRUE, FALSE, '', NULL, NULL, NULL, TRUE),
+    ('stream', 'RTMP_ENDPOINT', 'string', 'Internal RTMP endpoint for stream relay', FALSE, FALSE, 'rtmp://nginx-rtmp:1935/live/stream', NULL, NULL, NULL, TRUE),
     
-    -- Encoding settings
-    ('encoding', 'VIDEO_RESOLUTION', 'string', 'Video resolution (width:height)', TRUE, FALSE, '1280:720'),
-    ('encoding', 'VIDEO_BITRATE', 'string', 'Video bitrate (e.g., 3000k)', TRUE, FALSE, '3000k'),
-    ('encoding', 'AUDIO_BITRATE', 'string', 'Audio bitrate (e.g., 192k)', TRUE, FALSE, '192k'),
-    ('encoding', 'VIDEO_ENCODER', 'string', 'Video encoder (libx264 or h264_nvenc)', TRUE, FALSE, 'libx264'),
-    ('encoding', 'FFMPEG_PRESET', 'string', 'FFmpeg encoding preset', TRUE, FALSE, 'veryfast'),
-    ('encoding', 'FADE_DURATION', 'float', 'Fade transition duration (seconds)', FALSE, FALSE, '1.0'),
+    -- Encoding settings with dropdown options
+    ('encoding', 'VIDEO_RESOLUTION', 'string', 'Video resolution (width:height)', TRUE, FALSE, '1280:720', '["1920:1080", "1280:720", "854:480", "640:360"]'::jsonb, NULL, NULL, TRUE),
+    ('encoding', 'VIDEO_BITRATE', 'string', 'Video bitrate (higher = better quality, more bandwidth)', TRUE, FALSE, '3000k', '["6000k", "4500k", "3000k", "2000k", "1500k"]'::jsonb, NULL, NULL, TRUE),
+    ('encoding', 'AUDIO_BITRATE', 'string', 'Audio bitrate', TRUE, FALSE, '192k', '["320k", "256k", "192k", "128k", "96k"]'::jsonb, NULL, NULL, TRUE),
+    ('encoding', 'VIDEO_ENCODER', 'string', 'Video encoder (libx264=CPU, h264_nvenc=NVIDIA GPU)', TRUE, FALSE, 'libx264', '["libx264", "h264_nvenc", "h264_qsv", "h264_videotoolbox"]'::jsonb, NULL, NULL, TRUE),
+    ('encoding', 'FFMPEG_PRESET', 'string', 'FFmpeg encoding speed (faster = lower CPU, lower quality)', TRUE, FALSE, 'veryfast', '["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow"]'::jsonb, NULL, NULL, TRUE),
+    ('encoding', 'FADE_DURATION', 'float', 'Audio/video fade transition duration (seconds)', FALSE, FALSE, '1.0', NULL, 0.0, 5.0, FALSE),
+    ('encoding', 'TRACK_OVERLAP_DURATION', 'float', 'Track transition overlap duration (seconds)', FALSE, FALSE, '2.0', NULL, 0.0, 10.0, FALSE),
+    ('encoding', 'FFMPEG_LOG_LEVEL', 'string', 'FFmpeg log verbosity level', FALSE, FALSE, 'info', '["quiet", "panic", "fatal", "error", "warning", "info", "verbose", "debug"]'::jsonb, NULL, NULL, FALSE),
+    
+    -- Logo watermark overlay settings
+    ('encoding', 'ENABLE_LOGO_WATERMARK', 'boolean', 'Enable logo watermark overlay on video', FALSE, FALSE, 'false', NULL, NULL, NULL, FALSE),
+    ('encoding', 'LOGO_POSITION', 'string', 'Logo position on video', FALSE, FALSE, 'top-right', '["top-left", "top-right", "bottom-left", "bottom-right"]'::jsonb, NULL, NULL, FALSE),
+    ('encoding', 'LOGO_OPACITY', 'float', 'Logo opacity (0.0=invisible, 1.0=fully opaque)', FALSE, FALSE, '0.8', NULL, 0.0, 1.0, FALSE),
+    
+    -- Text overlay settings
+    ('encoding', 'ENABLE_TEXT_OVERLAY', 'boolean', 'Enable text overlay showing track information', FALSE, FALSE, 'false', NULL, NULL, NULL, FALSE),
     
     -- Notifications
-    ('notifications', 'DISCORD_WEBHOOK_URL', 'url', 'Discord webhook URL', FALSE, TRUE, ''),
-    ('notifications', 'SLACK_WEBHOOK_URL', 'url', 'Slack webhook URL', FALSE, TRUE, ''),
+    ('notifications', 'DISCORD_WEBHOOK_URL', 'url', 'Discord webhook URL for notifications', FALSE, TRUE, '', NULL, NULL, NULL, FALSE),
+    ('notifications', 'SLACK_WEBHOOK_URL', 'url', 'Slack webhook URL for notifications', FALSE, TRUE, '', NULL, NULL, NULL, FALSE),
     
     -- Database
-    ('database', 'POSTGRES_HOST', 'string', 'PostgreSQL host', TRUE, FALSE, 'postgres'),
-    ('database', 'POSTGRES_PORT', 'integer', 'PostgreSQL port', TRUE, FALSE, '5432'),
-    ('database', 'POSTGRES_USER', 'string', 'PostgreSQL username', TRUE, FALSE, 'radio'),
-    ('database', 'POSTGRES_PASSWORD', 'secret', 'PostgreSQL password', TRUE, TRUE, ''),
-    ('database', 'POSTGRES_DB', 'string', 'PostgreSQL database name', TRUE, FALSE, 'radio_db'),
+    ('database', 'POSTGRES_HOST', 'string', 'PostgreSQL hostname', TRUE, FALSE, 'postgres', NULL, NULL, NULL, TRUE),
+    ('database', 'POSTGRES_PORT', 'integer', 'PostgreSQL port', TRUE, FALSE, '5432', NULL, 1, 65535, TRUE),
+    ('database', 'POSTGRES_USER', 'string', 'PostgreSQL username', TRUE, FALSE, 'radio', NULL, NULL, NULL, TRUE),
+    ('database', 'POSTGRES_PASSWORD', 'secret', 'PostgreSQL password', TRUE, TRUE, '', NULL, NULL, NULL, TRUE),
+    ('database', 'POSTGRES_DB', 'string', 'PostgreSQL database name', TRUE, FALSE, 'radio_db', NULL, NULL, NULL, TRUE),
     
     -- Security
-    ('security', 'WEBHOOK_SECRET', 'secret', 'Webhook validation secret', TRUE, TRUE, ''),
-    ('security', 'API_TOKEN', 'secret', 'API authentication token', TRUE, TRUE, ''),
-    ('security', 'JWT_SECRET', 'secret', 'JWT signing secret', TRUE, TRUE, ''),
+    ('security', 'WEBHOOK_SECRET', 'secret', 'AzuraCast webhook validation secret', TRUE, TRUE, '', NULL, NULL, NULL, TRUE),
+    ('security', 'API_TOKEN', 'secret', 'Internal API token for service-to-service communication', TRUE, TRUE, '', NULL, NULL, NULL, TRUE),
+    ('security', 'JWT_SECRET', 'secret', 'JWT signing secret for dashboard authentication', TRUE, TRUE, '', NULL, NULL, NULL, TRUE),
     
     -- Paths
-    ('paths', 'LOOPS_PATH', 'path', 'Video loops directory', TRUE, FALSE, '/srv/loops'),
-    ('paths', 'DEFAULT_LOOP', 'path', 'Default video loop path', TRUE, FALSE, '/srv/loops/default.mp4'),
-    ('paths', 'LOG_PATH', 'path', 'Logs directory', FALSE, FALSE, '/var/log/radio'),
+    ('paths', 'LOOPS_PATH', 'path', 'Video loops directory path', TRUE, FALSE, '/app/loops', NULL, NULL, NULL, TRUE),
+    ('paths', 'DEFAULT_LOOP', 'path', 'Default video loop file path', TRUE, FALSE, '/app/loops/default.mp4', NULL, NULL, NULL, TRUE),
+    ('paths', 'LOG_PATH', 'path', 'Log files directory path', FALSE, FALSE, '/var/log/radio', NULL, NULL, NULL, FALSE),
+    ('paths', 'LOGO_PATH', 'path', 'Logo image file path (PNG with transparency recommended)', FALSE, FALSE, '/app/logos/logo.png', NULL, NULL, NULL, FALSE),
     
     -- Advanced
-    ('advanced', 'LOG_LEVEL', 'string', 'Logging level', FALSE, FALSE, 'INFO'),
-    ('advanced', 'DEBUG', 'boolean', 'Enable debug mode', FALSE, FALSE, 'false'),
-    ('advanced', 'ENABLE_METRICS', 'boolean', 'Enable Prometheus metrics', FALSE, FALSE, 'true')
+    ('advanced', 'LOG_LEVEL', 'string', 'Application logging level', FALSE, FALSE, 'INFO', '["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]'::jsonb, NULL, NULL, FALSE),
+    ('advanced', 'DEBUG', 'boolean', 'Enable debug mode', FALSE, FALSE, 'false', NULL, NULL, NULL, TRUE),
+    ('advanced', 'ENVIRONMENT', 'string', 'Environment name', FALSE, FALSE, 'production', '["development", "staging", "production"]'::jsonb, NULL, NULL, FALSE),
+    ('advanced', 'ENABLE_METRICS', 'boolean', 'Enable Prometheus metrics export', FALSE, FALSE, 'true', NULL, NULL, NULL, TRUE),
+    ('advanced', 'CONFIG_REFRESH_INTERVAL', 'integer', 'Configuration refresh interval (seconds)', FALSE, FALSE, '60', NULL, 10, 3600, FALSE),
+    ('advanced', 'MAX_RESTART_ATTEMPTS', 'integer', 'Maximum FFmpeg restart attempts on failure', FALSE, FALSE, '3', NULL, 1, 10, FALSE),
+    ('advanced', 'RESTART_COOLDOWN_SECONDS', 'integer', 'Cooldown period between restart attempts (seconds)', FALSE, FALSE, '60', NULL, 10, 600, FALSE)
 ON CONFLICT (category, key) DO NOTHING;
 

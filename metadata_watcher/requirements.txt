@@ -5,10 +5,10 @@
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 pydantic>=2.4.0
+pydantic-settings>=2.1.0
 
 # HTTP client
 aiohttp>=3.9.0
-requests>=2.31.0
 httpx>=0.25.0
 
 # Environment and configuration
@@ -17,12 +17,15 @@ python-dotenv>=1.0.0
 # Logging (structured logging optional)
 python-json-logger>=2.0.7
 
-# PostgreSQL (for future integration with SHARD-3)
-psycopg2-binary>=2.9.9
-sqlalchemy>=2.0.23
+# Prometheus metrics
+prometheus-client>=0.20.0
 
 # Process management utilities
 psutil>=5.9.6
+
+# Database access via track_mapper
+sqlalchemy>=2.0.23
+psycopg2-binary>=2.9.9
 
 
 
