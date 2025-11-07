@@ -98,7 +98,7 @@ jobs:
   compose-integration:
     name: Compose Integration Boot
     runs-on: ubuntu-latest
-    needs: [ python-checks, node-ui, docker-validate ]
+    # Run independently so builds validate even if linters fail
     steps:
       - uses: actions/checkout@v4
 
