@@ -20,8 +20,8 @@ class TestFullStackIntegration:
     @pytest.fixture(scope="class")
     def docker_services_running(self):
         """Ensure Docker services are running."""
-        # Check if docker-compose is running
-        result = subprocess.run(["docker-compose", "ps"], capture_output=True, text=True)
+        # Check if docker compose is running
+        result = subprocess.run(["docker", "compose", "ps"], capture_output=True, text=True)
 
         if "Up" not in result.stdout:
             pytest.skip("Docker services not running")

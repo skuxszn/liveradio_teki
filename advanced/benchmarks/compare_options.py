@@ -19,7 +19,6 @@ import statistics
 import sys
 import time
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
@@ -28,10 +27,11 @@ import psutil
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from advanced.config import AdvancedConfig
-from advanced.dual_input_ffmpeg import DualInputFFmpegManager
-from ffmpeg_manager.process_manager import FFmpegProcessManager
-from ffmpeg_manager.config import get_config as get_ffmpeg_config
+# Module imports after path modification (intentional)  # noqa: E402
+from advanced.config import AdvancedConfig  # noqa: E402
+from advanced.dual_input_ffmpeg import DualInputFFmpegManager  # noqa: E402
+from ffmpeg_manager.process_manager import FFmpegProcessManager  # noqa: E402
+from ffmpeg_manager.config import get_config as get_ffmpeg_config  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,

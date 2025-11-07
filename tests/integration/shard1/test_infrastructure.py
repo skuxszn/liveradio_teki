@@ -23,7 +23,7 @@ def docker_services() -> Generator[None, None, None]:
     """
     # Start services
     subprocess.run(
-        ["docker-compose", "up", "-d"],
+        ["docker", "compose", "up", "-d"],
         check=True,
         cwd=os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
     )
@@ -35,7 +35,7 @@ def docker_services() -> Generator[None, None, None]:
 
     # Cleanup
     subprocess.run(
-        ["docker-compose", "down"],
+        ["docker", "compose", "down"],
         check=False,
         cwd=os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
     )
@@ -169,7 +169,7 @@ class TestHealthChecks:
         time.sleep(30)
 
         result = subprocess.run(
-            ["docker-compose", "ps"],
+            ["docker", "compose", "ps"],
             capture_output=True,
             text=True,
             cwd=os.path.dirname(os.path.dirname(os.path.dirname(__file__))),

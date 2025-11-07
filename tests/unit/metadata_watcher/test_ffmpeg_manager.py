@@ -13,7 +13,8 @@ from metadata_watcher.config import Config
 @pytest.fixture
 def mock_config():
     """Create a mock configuration for testing."""
-    config = Mock(spec=Config)
+    config = Mock()
+    # Required attributes
     config.azuracast_audio_url = "http://test:8000/radio"
     config.rtmp_endpoint = "rtmp://test:1935/live/stream"
     config.video_resolution = "1280:720"
@@ -26,6 +27,12 @@ def mock_config():
     config.max_restart_attempts = 3
     config.restart_cooldown_seconds = 60
     config.ffmpeg_log_level = "info"
+    config.default_loop = Path("/test/default.mp4")
+    # Optional attributes (with defaults)
+    config.enable_logo_watermark = False
+    config.enable_text_overlay = False
+    config.logo_path = "/app/logos/logo.png"
+    config.logo_opacity = 0.8
     return config
 
 

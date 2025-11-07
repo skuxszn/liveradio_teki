@@ -26,6 +26,7 @@ def mock_ffmpeg_manager():
     """Create a mock FFmpeg manager."""
     manager = Mock()
     manager.switch_track = AsyncMock(return_value=True)
+    manager.check_control_commands = AsyncMock()
     manager.get_status = Mock(
         return_value={
             "status": "running",
@@ -39,6 +40,7 @@ def mock_ffmpeg_manager():
         }
     )
     manager.cleanup = AsyncMock()
+    manager.config = Mock()
     return manager
 
 
@@ -96,14 +98,16 @@ class TestWebhookEndpoint:
     def test_webhook_valid_payload(self, client):
         """Test webhook with valid payload."""
         payload = {
-            "song": {
-                "id": "123",
-                "artist": "Test Artist",
-                "title": "Test Title",
-                "album": "Test Album",
+            "now_playing": {
+                "song": {
+                    "id": "123",
+                    "artist": "Test Artist",
+                    "title": "Test Title",
+                    "album": "Test Album",
+                },
                 "duration": 180,
             },
-            "station": {"id": "1", "name": "Test Station"},
+            "station": {"id": 1, "name": "Test Station"},
         }
 
         response = client.post(
@@ -118,8 +122,10 @@ class TestWebhookEndpoint:
     def test_webhook_invalid_secret(self, client):
         """Test webhook with invalid secret."""
         payload = {
-            "song": {"id": "123", "artist": "Test Artist", "title": "Test Title"},
-            "station": {"id": "1", "name": "Test Station"},
+            "now_playing": {
+                "song": {"id": "123", "artist": "Test Artist", "title": "Test Title"}
+            },
+            "station": {"id": 1, "name": "Test Station"},
         }
 
         response = client.post(
@@ -131,8 +137,10 @@ class TestWebhookEndpoint:
     def test_webhook_missing_secret(self, client):
         """Test webhook without secret header."""
         payload = {
-            "song": {"id": "123", "artist": "Test Artist", "title": "Test Title"},
-            "station": {"id": "1", "name": "Test Station"},
+            "now_playing": {
+                "song": {"id": "123", "artist": "Test Artist", "title": "Test Title"}
+            },
+            "station": {"id": 1, "name": "Test Station"},
         }
 
         response = client.post("/webhook/azuracast", json=payload)
