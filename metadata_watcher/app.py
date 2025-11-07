@@ -14,10 +14,10 @@ import aiohttp
 from fastapi import FastAPI, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
-from .config import Config
-from .config_fetcher import ConfigFetcher
-from .ffmpeg_manager import FFmpegManager
-from .track_resolver import TrackResolver
+from config import Config
+from config_fetcher import ConfigFetcher
+from ffmpeg_manager import FFmpegManager
+from track_resolver import TrackResolver
 
 # Configure logging
 logging.basicConfig(

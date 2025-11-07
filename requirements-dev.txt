@@ -1,6 +1,19 @@
 # Development dependencies for 24/7 FFmpeg YouTube Radio Stream
 # Install with: pip install -r requirements-dev.txt
 
+# Core application dependencies (needed for testing)
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+pydantic>=2.0.0
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.6
+aiohttp>=3.9.0
+httpx>=0.25.0
+alembic>=1.12.0
+
 # Testing
 pytest>=7.4.0
 pytest-cov>=4.1.0

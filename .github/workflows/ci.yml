@@ -43,8 +43,10 @@ jobs:
     
     - name: Run Flake8 (linting)
       run: |
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 . --count --max-complexity=10 --max-line-length=100 --statistics
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics \
+          --exclude=venv,.venv,env,.env,node_modules,.git,__pycache__,.pytest_cache,htmlcov
+        flake8 . --count --max-complexity=10 --max-line-length=100 --statistics \
+          --exclude=venv,.venv,env,.env,node_modules,.git,__pycache__,.pytest_cache,htmlcov
     
     - name: Run mypy (type checking)
       run: |
