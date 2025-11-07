@@ -122,9 +122,7 @@ class TestWebhookEndpoint:
     def test_webhook_invalid_secret(self, client):
         """Test webhook with invalid secret."""
         payload = {
-            "now_playing": {
-                "song": {"id": "123", "artist": "Test Artist", "title": "Test Title"}
-            },
+            "now_playing": {"song": {"id": "123", "artist": "Test Artist", "title": "Test Title"}},
             "station": {"id": 1, "name": "Test Station"},
         }
 
@@ -137,9 +135,7 @@ class TestWebhookEndpoint:
     def test_webhook_missing_secret(self, client):
         """Test webhook without secret header."""
         payload = {
-            "now_playing": {
-                "song": {"id": "123", "artist": "Test Artist", "title": "Test Title"}
-            },
+            "now_playing": {"song": {"id": "123", "artist": "Test Artist", "title": "Test Title"}},
             "station": {"id": 1, "name": "Test Station"},
         }
 
