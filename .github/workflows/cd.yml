@@ -1,0 +1,73 @@
+name: CD (Production)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref (branch or tag) to deploy'
+        required: false
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/liveradio_teki
+
+jobs:
+  deploy:
+    name: Deploy via SSH
+    runs-on: ubuntu-latest
+    environment: production
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Prepare image tags
+        id: tags
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then TAG=${GITHUB_REF##*/}; else TAG=latest; fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_KEY }}
+
+      - name: Add known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.PRODUCTION_SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Remote deploy
+        run: |
+          ssh ${{ secrets.PRODUCTION_SSH_USER }}@${{ secrets.PRODUCTION_SSH_HOST }} << 'EOF'
+          set -e
+          docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+          export POSTGRES_USER=radio
+          export POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          export POSTGRES_DB=radio_db
+          export API_TOKEN=${API_TOKEN}
+          export JWT_SECRET=${JWT_SECRET}
+          export AZURACAST_URL=${AZURACAST_URL}
+          export AZURACAST_API_KEY=${AZURACAST_API_KEY}
+          export AZURACAST_AUDIO_URL=${AZURACAST_AUDIO_URL}
+          export LOG_LEVEL=INFO
+          export DEBUG=false
+          export ENVIRONMENT=production
+          docker compose pull
+          docker compose up -d
+          EOF
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          API_TOKEN: ${{ secrets.API_TOKEN }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          AZURACAST_URL: ${{ secrets.AZURACAST_URL }}
+          AZURACAST_API_KEY: ${{ secrets.AZURACAST_API_KEY }}
+          AZURACAST_AUDIO_URL: ${{ secrets.AZURACAST_AUDIO_URL }}
+
+
