@@ -13,8 +13,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
-
-import requests
+import aiohttp
 
 from .config import Config
 
@@ -609,11 +608,13 @@ class FFmpegManager:
 
                     # Check audio URL is reachable
                     try:
-                        response = requests.head(self.config.azuracast_audio_url, timeout=5)
-                        if response.status_code >= 400:
-                            validation_errors.append(
-                                f"Audio source unreachable (HTTP {response.status_code}): {self.config.azuracast_audio_url}"
-                            )
+                        timeout = aiohttp.ClientTimeout(total=5)
+                        async with aiohttp.ClientSession(timeout=timeout) as session:
+                            async with session.head(self.config.azuracast_audio_url) as resp:
+                                if resp.status >= 400:
+                                    validation_errors.append(
+                                        f"Audio source unreachable (HTTP {resp.status}): {self.config.azuracast_audio_url}"
+                                    )
                     except Exception as e:
                         validation_errors.append(f"Cannot reach audio source: {e}")
 

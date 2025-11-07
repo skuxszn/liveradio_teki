@@ -21,17 +21,19 @@ services:
       - DEBUG=true
       - LOG_LEVEL=DEBUG
       - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
     # Mount source code for live editing
     volumes:
-      - ./metadata_watcher:/app:rw
-      - /srv/loops:/srv/loops:rw  # Read-write in dev for testing
-      - /var/log/radio:/var/log/radio:rw
+      - ./metadata_watcher:/app/metadata_watcher:rw
+      - ./track_mapper:/app/track_mapper:rw
+      - ./loops:/srv/loops:rw  # Read-write in dev for testing
+      - ./logs:/var/log/radio:rw
     # Expose debugger port
     ports:
       - "9000:9000"
       - "5678:5678"  # Python debugger (debugpy)
     # Override command to enable auto-reload
-    command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "9000", "--reload"]
+    command: ["uvicorn", "metadata_watcher.app:app", "--host", "0.0.0.0", "--port", "9000", "--reload"]
 
   # Development overrides for postgres
   postgres:

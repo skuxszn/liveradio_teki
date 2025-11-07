@@ -1,17 +1,23 @@
 """Monitoring and metrics routes."""
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Optional
 from datetime import datetime, timedelta
 import psutil
 import os
+from prometheus_client import CollectorRegistry, Gauge, generate_latest, CONTENT_TYPE_LATEST
 
 from database import get_db
 from dependencies import get_current_user
 
 router = APIRouter()
+
+# Basic Prometheus registry and a health gauge
+_registry = CollectorRegistry()
+_api_health = Gauge("dashboard_api_health", "API health status", registry=_registry)
+_api_health.set(1)
 
 
 @router.get("/current")
@@ -238,3 +244,10 @@ async def get_recent_activity(
         )
 
     return {"activities": activities, "count": len(activities)}
+
+
+@router.get("/prometheus")
+async def prometheus_metrics():
+    """Prometheus metrics scrape endpoint."""
+    data = generate_latest(_registry)
+    return Response(content=data, media_type=CONTENT_TYPE_LATEST)

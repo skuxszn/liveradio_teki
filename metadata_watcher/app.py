@@ -11,13 +11,21 @@ from datetime import datetime
 from typing import Optional
 
 import aiohttp
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, status, Response
 from pydantic import BaseModel, Field
+from prometheus_client import CollectorRegistry, Counter, Gauge, generate_latest, CONTENT_TYPE_LATEST
 
-from config import Config
-from config_fetcher import ConfigFetcher
-from ffmpeg_manager import FFmpegManager
-from track_resolver import TrackResolver
+from .config import Config
+from .config_fetcher import ConfigFetcher
+from .ffmpeg_manager import FFmpegManager
+
+# Import official TrackMapper from track_mapper module
+import sys
+from pathlib import Path as PathLib
+# Add parent directory to path to access track_mapper
+sys.path.insert(0, str(PathLib(__file__).parent.parent))
+from track_mapper.mapper import TrackMapper
+from track_mapper.config import TrackMapperConfig as TMConfig
 
 # Configure logging
 logging.basicConfig(
@@ -33,7 +41,26 @@ logger = logging.getLogger(__name__)
 config: Optional[Config] = None
 config_fetcher: Optional[ConfigFetcher] = None
 ffmpeg_manager: Optional[FFmpegManager] = None
-track_resolver: Optional[TrackResolver] = None
+track_mapper: Optional[TrackMapper] = None
+
+# Prometheus metrics
+metrics_registry = CollectorRegistry()
+ffmpeg_healthy = Gauge(
+    "ffmpeg_process_healthy",
+    "FFmpeg process health (1 healthy, 0 otherwise)",
+    registry=metrics_registry,
+)
+ffmpeg_errors_total = Counter(
+    "ffmpeg_errors_total",
+    "Total FFmpeg errors encountered",
+    registry=metrics_registry,
+)
+config_version_gauge = Gauge(
+    "metadata_watcher_config_version",
+    "Static config version (bumped on refresh)",
+    registry=metrics_registry,
+)
+_config_version = 0
 
 
 # Pydantic models for request/response validation
@@ -129,6 +156,7 @@ async def background_task_loop():
                                 )
                                 ffmpeg_manager.current_process = None
                                 ffmpeg_manager.update_status_file()
+                                ffmpeg_errors_total.inc()
                             except Exception as e:
                                 logger.error(f"Error reading crash log: {e}")
 
@@ -162,10 +190,10 @@ async def on_config_change(new_config: Config, changed_keys: list):
         ffmpeg_manager.config = new_config
         logger.info("FFmpeg manager config updated with new settings")
 
-    # Update track_resolver config
-    if track_resolver:
-        track_resolver.config = new_config
-        logger.info("Track resolver config updated with new settings")
+    # Update track_mapper config (rebuild with new settings)
+    if track_mapper:
+        # TrackMapper uses TrackMapperConfig, so we need to update it
+        logger.info("Track mapper config will be used from database on next mapping request")
 
     # Critical changes that require restart (RTMP, video settings, etc.)
     critical_keys = {
@@ -186,11 +214,16 @@ async def on_config_change(new_config: Config, changed_keys: list):
             )
             ffmpeg_manager.update_status_file()
 
+    # Bump config version metric
+    global _config_version
+    _config_version += 1
+    config_version_gauge.set(_config_version)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager for startup/shutdown."""
-    global config, config_fetcher, ffmpeg_manager, track_resolver
+    global config, config_fetcher, ffmpeg_manager, track_mapper
 
     # Startup
     logger.info("Starting metadata watcher service...")
@@ -235,13 +268,34 @@ async def lifespan(app: FastAPI):
             )
 
         # Initialize components
-        track_resolver = TrackResolver(config)
+        # Create TrackMapperConfig from main Config
+        track_mapper_config = TMConfig(
+            postgres_host=config.postgres_host,
+            postgres_port=config.postgres_port,
+            postgres_user=config.postgres_user,
+            postgres_password=config.postgres_password,
+            postgres_db=config.postgres_db,
+            loops_path=str(config.loops_path),
+            default_loop=str(config.default_loop),
+            cache_size=1000,
+            cache_ttl_seconds=3600,
+            log_level=config.log_level,
+            debug=config.debug,
+            environment=config.environment,
+        )
+        track_mapper = TrackMapper(track_mapper_config)
+        logger.info("TrackMapper initialized with database-backed mappings")
+        
         ffmpeg_manager = FFmpegManager(config)
 
         # Start background task for control commands and status updates
         background_task = asyncio.create_task(background_task_loop())
 
         logger.info("Service started successfully")
+        # Initialize metrics on startup
+        global _config_version
+        _config_version = 1
+        config_version_gauge.set(_config_version)
         yield
 
     except Exception as e:
@@ -352,16 +406,16 @@ async def azuracast_webhook(request: Request):
     logger.info(f"Received webhook: {song.artist} - {song.title} " f"(ID: {song.id})")
 
     try:
-        # Resolve track to video loop
-        loop_path = track_resolver.resolve_loop(
+        # Get video loop path from TrackMapper
+        loop_path_str = track_mapper.get_loop(
             artist=song.artist,
             title=song.title,
             song_id=song.id,
-            album=song.album or "",
         )
+        loop_path = PathLib(loop_path_str)
 
         # Switch FFmpeg process to new track
-        track_key = track_resolver._normalize_track_key(song.artist, song.title)
+        track_key = TrackMapper.normalize_track_key(song.artist, song.title)
 
         success = await ffmpeg_manager.switch_track(
             track_key=track_key,
@@ -457,6 +511,19 @@ async def get_status():
     )
 
 
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint."""
+    # Update instantaneous gauges
+    try:
+        status_info = ffmpeg_manager.get_status()
+        ffmpeg_healthy.set(1.0 if status_info.get("status") == "running" else 0.0)
+    except Exception:
+        ffmpeg_healthy.set(0.0)
+    data = generate_latest(metrics_registry)
+    return Response(content=data, media_type=CONTENT_TYPE_LATEST)
+
+
 @app.post("/manual/switch", status_code=status.HTTP_200_OK)
 async def manual_track_switch(payload: ManualSwitchRequest, request: Request):
     """Manual track switch endpoint for testing.
@@ -492,15 +559,16 @@ async def manual_track_switch(payload: ManualSwitchRequest, request: Request):
     logger.info(f"Manual switch requested: {payload.artist} - {payload.title}")
 
     try:
-        # Resolve loop
-        loop_path = track_resolver.resolve_loop(
+        # Get video loop path from TrackMapper
+        loop_path_str = track_mapper.get_loop(
             artist=payload.artist,
             title=payload.title,
             song_id=payload.song_id,
         )
+        loop_path = PathLib(loop_path_str)
 
         # Switch track
-        track_key = track_resolver._normalize_track_key(payload.artist, payload.title)
+        track_key = TrackMapper.normalize_track_key(payload.artist, payload.title)
         success = await ffmpeg_manager.switch_track(
             track_key=track_key,
             artist=payload.artist,

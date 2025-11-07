@@ -12,6 +12,5 @@ __author__ = "SHARD-2 Development Team"
 
 from .config import Config
 from .ffmpeg_manager import FFmpegManager
-from .track_resolver import TrackResolver
 
-__all__ = ["Config", "FFmpegManager", "TrackResolver"]
+__all__ = ["Config", "FFmpegManager"]

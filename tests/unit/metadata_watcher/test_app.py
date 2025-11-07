@@ -45,24 +45,23 @@ def mock_ffmpeg_manager():
 
 
 @pytest.fixture
-def mock_track_resolver():
-    """Create a mock track resolver."""
-    resolver = Mock()
-    resolver.resolve_loop = Mock(return_value=Path("/test/loop.mp4"))
-    resolver._normalize_track_key = Mock(return_value="artist - title")
-    return resolver
+def mock_track_mapper():
+    """Create a mock track mapper."""
+    mapper = Mock()
+    mapper.get_loop = Mock(return_value="/test/loop.mp4")  # Returns string path
+    return mapper
 
 
 @pytest.fixture
-def client(mock_config, mock_ffmpeg_manager, mock_track_resolver):
+def client(mock_config, mock_ffmpeg_manager, mock_track_mapper):
     """Create a test client with mocked dependencies."""
     with patch("metadata_watcher.app.Config") as MockConfig, patch(
         "metadata_watcher.app.FFmpegManager"
-    ) as MockFFmpegManager, patch("metadata_watcher.app.TrackResolver") as MockTrackResolver:
+    ) as MockFFmpegManager, patch("metadata_watcher.app.TrackMapper") as MockTrackMapper:
 
         MockConfig.from_env.return_value = mock_config
         MockFFmpegManager.return_value = mock_ffmpeg_manager
-        MockTrackResolver.return_value = mock_track_resolver
+        MockTrackMapper.return_value = mock_track_mapper
 
         # Import app after patching
         from metadata_watcher.app import app
@@ -72,7 +71,7 @@ def client(mock_config, mock_ffmpeg_manager, mock_track_resolver):
 
         app_module.config = mock_config
         app_module.ffmpeg_manager = mock_ffmpeg_manager
-        app_module.track_resolver = mock_track_resolver
+        app_module.track_mapper = mock_track_mapper
 
         with TestClient(app) as test_client:
             yield test_client

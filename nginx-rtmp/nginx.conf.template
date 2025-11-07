@@ -3,7 +3,6 @@
 # This is a TEMPLATE file - ${YOUTUBE_STREAM_KEY} will be replaced at runtime
 
 worker_processes auto;
-rtmp_auto_push on;
 events {
     worker_connections 1024;
 }
@@ -13,6 +12,7 @@ rtmp {
         listen 1935;
         chunk_size 8192;  # Increased for better throughput
         buflen 5s;  # Buffer 5 seconds of stream data
+        out_queue 4096;  # Output queue size
         
         application live {
             live on;
@@ -21,6 +21,7 @@ rtmp {
             # Allow publishing from internal network only
             allow publish 127.0.0.1;
             allow publish 172.16.0.0/12;  # Docker internal network
+            allow publish 172.28.0.0/16;  # Project Docker network
             allow publish 192.168.0.0/16;
             deny publish all;
             
@@ -29,7 +30,7 @@ rtmp {
             
             # Push to YouTube RTMP endpoint
             # Stream key will be fetched from dashboard and replaced at runtime
-            push rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_STREAM_KEY} live=1;
+            push rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_STREAM_KEY};
             
             # Optional: Push to backup endpoints
             # push rtmp://backup.server.com/live/${BACKUP_KEY};
