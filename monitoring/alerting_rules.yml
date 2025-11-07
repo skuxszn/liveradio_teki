@@ -1,0 +1,82 @@
+# Prometheus alerting rules for 24/7 Radio Stream
+
+groups:
+  - name: radio_stream_alerts
+    interval: 30s
+    rules:
+      # Critical: Stream is down
+      - alert: StreamDown
+        expr: up{job="metadata-watcher"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: metadata-watcher
+        annotations:
+          summary: "Radio stream service is down"
+          description: "Metadata watcher has been down for more than 2 minutes"
+
+      # Critical: RTMP relay is down
+      - alert: RTMPRelayDown
+        expr: up{job="nginx-rtmp"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: nginx-rtmp
+        annotations:
+          summary: "RTMP relay is down"
+          description: "nginx-rtmp service has been unreachable for more than 1 minute"
+
+      # Warning: High error rate
+      - alert: HighErrorRate
+        expr: rate(radio_errors_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} errors per second"
+
+      # Warning: FFmpeg restart loop
+      - alert: FrequentFFmpegRestarts
+        expr: rate(radio_ffmpeg_restarts_total[10m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "FFmpeg is restarting frequently"
+          description: "FFmpeg has restarted {{ $value }} times in the last 10 minutes"
+
+      # Critical: Database is down
+      - alert: DatabaseDown
+        expr: up{job="postgres"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: postgres
+        annotations:
+          summary: "Database is unreachable"
+          description: "PostgreSQL database has been down for more than 2 minutes"
+
+      # Warning: No tracks played recently
+      - alert: NoTracksPlayed
+        expr: rate(radio_tracks_played_total[30m]) == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No tracks played in last 30 minutes"
+          description: "Track counter hasn't increased, possible stream freeze"
+
+      # Info: Long-running track (possible issue)
+      - alert: LongRunningTrack
+        expr: radio_current_track_duration_seconds > 900
+        for: 1m
+        labels:
+          severity: info
+        annotations:
+          summary: "Current track has been playing for >15 minutes"
+          description: "Track duration: {{ $value }}s - possible stuck stream"
+
+
+
+

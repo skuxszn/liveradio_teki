@@ -1,0 +1,89 @@
+# nginx-rtmp configuration for 24/7 YouTube Radio Stream
+# This acts as a stable RTMP relay buffer between FFmpeg and YouTube
+# This is a TEMPLATE file - ${YOUTUBE_STREAM_KEY} will be replaced at runtime
+
+worker_processes auto;
+rtmp_auto_push on;
+events {
+    worker_connections 1024;
+}
+
+rtmp {
+    server {
+        listen 1935;
+        chunk_size 8192;  # Increased for better throughput
+        buflen 5s;  # Buffer 5 seconds of stream data
+        
+        application live {
+            live on;
+            record off;
+            
+            # Allow publishing from internal network only
+            allow publish 127.0.0.1;
+            allow publish 172.16.0.0/12;  # Docker internal network
+            allow publish 192.168.0.0/16;
+            deny publish all;
+            
+            # Allow playback for local testing
+            allow play all;
+            
+            # Push to YouTube RTMP endpoint
+            # Stream key will be fetched from dashboard and replaced at runtime
+            push rtmp://a.rtmp.youtube.com/live2/${YOUTUBE_STREAM_KEY} live=1;
+            
+            # Optional: Push to backup endpoints
+            # push rtmp://backup.server.com/live/${BACKUP_KEY};
+            
+            # Drop idle publisher after 10 seconds
+            drop_idle_publisher 10s;
+            
+            # Synchronize audio and video streams
+            sync 10ms;
+            
+            # Wait for video key frame before starting new viewers
+            wait_key on;
+            wait_video on;
+            
+            # HLS for local monitoring (optional)
+            hls on;
+            hls_path /tmp/hls;
+            hls_fragment 2s;
+            hls_playlist_length 10s;
+        }
+    }
+}
+
+http {
+    server {
+        listen 8080;
+        
+        # RTMP statistics endpoint
+        location /stat {
+            rtmp_stat all;
+            rtmp_stat_stylesheet stat.xsl;
+        }
+        
+        location /stat.xsl {
+            root /usr/local/nginx/html;
+        }
+        
+        # Health check endpoint
+        location /health {
+            access_log off;
+            return 200 "OK\n";
+            add_header Content-Type text/plain;
+        }
+        
+        # HLS playback for local testing
+        location /hls {
+            types {
+                application/vnd.apple.mpegurl m3u8;
+                video/mp2t ts;
+            }
+            root /tmp;
+            add_header Cache-Control no-cache;
+            add_header Access-Control-Allow-Origin *;
+        }
+    }
+}
+

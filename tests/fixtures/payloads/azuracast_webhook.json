@@ -1,0 +1,48 @@
+{
+  "song": {
+    "id": "123",
+    "text": "Artist Name - Song Title",
+    "artist": "Artist Name",
+    "title": "Song Title",
+    "album": "Album Name",
+    "genre": "Electronic",
+    "isrc": "USRC17607839",
+    "lyrics": "",
+    "art": "https://example.com/art.jpg",
+    "custom_fields": {},
+    "duration": 180
+  },
+  "station": {
+    "id": "1",
+    "name": "Test Radio Station",
+    "shortcode": "test_radio",
+    "description": "A test radio station",
+    "frontend": "icecast",
+    "backend": "liquidsoap",
+    "listen_url": "http://test.azuracast.local:8000/radio",
+    "url": "http://test.azuracast.local",
+    "public_player_url": "http://test.azuracast.local/public/test_radio",
+    "playlist_pls_url": "http://test.azuracast.local/public/test_radio/playlist.pls",
+    "playlist_m3u_url": "http://test.azuracast.local/public/test_radio/playlist.m3u",
+    "is_public": true,
+    "mounts": [],
+    "remotes": []
+  },
+  "live": {
+    "is_live": false,
+    "streamer_name": "",
+    "broadcast_start": null
+  },
+  "now_playing": {
+    "sh_id": 1,
+    "played_at": 1699027200,
+    "duration": 180,
+    "playlist": "Main Playlist",
+    "is_request": false,
+    "elapsed": 45,
+    "remaining": 135
+  }
+}
+
+
+

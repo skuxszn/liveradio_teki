@@ -1,0 +1,583 @@
+{
+  "project": {
+    "name": "24/7 FFmpeg YouTube Radio Stream",
+    "version": "1.0.0",
+    "description": "AzuraCast-based radio with per-track video loops",
+    "start_date": "2025-11-03",
+    "estimated_duration_days": 21
+  },
+  "shards": [
+    {
+      "id": "shard-1",
+      "name": "Core Infrastructure Setup",
+      "priority": "critical",
+      "complexity": "medium",
+      "estimated_days": 2,
+      "dependencies": [],
+      "blocks": ["shard-2", "shard-3", "shard-4", "shard-5", "shard-6", "shard-7", "shard-8", "shard-10"],
+      "parallel_compatible": false,
+      "description": "Docker Compose setup with nginx-rtmp relay, environment configuration, and network architecture",
+      "deliverables": [
+        "docker-compose.yml",
+        "nginx-rtmp/nginx.conf",
+        ".env.example",
+        "docker-compose.override.yml",
+        "Health check endpoints"
+      ],
+      "testing_requirements": [
+        "All containers start successfully",
+        "nginx-rtmp accepts local RTMP push",
+        "Services can communicate on internal network"
+      ],
+      "skills_required": ["Docker", "nginx", "RTMP", "networking"],
+      "interface_outputs": {
+        "rtmp_endpoint": "rtmp://nginx-rtmp:1935/live/stream",
+        "environment_vars": "shared across services"
+      }
+    },
+    {
+      "id": "shard-2",
+      "name": "Metadata Watcher Service",
+      "priority": "critical",
+      "complexity": "medium",
+      "estimated_days": 2,
+      "dependencies": ["shard-1"],
+      "blocks": ["shard-7"],
+      "parallel_compatible": true,
+      "parallel_group": "backend",
+      "description": "FastAPI webhook receiver for AzuraCast track changes with health checks",
+      "deliverables": [
+        "metadata_watcher/app.py",
+        "metadata_watcher/ffmpeg_manager.py",
+        "metadata_watcher/track_resolver.py",
+        "metadata_watcher/requirements.txt",
+        "Dockerfile"
+      ],
+      "testing_requirements": [
+        "Webhook endpoint returns 200 OK",
+        "Process manager spawns FFmpeg correctly",
+        "Graceful overlap works",
+        "Service auto-recovers from crashes"
+      ],
+      "skills_required": ["Python", "FastAPI", "async programming", "subprocess management"],
+      "interface_inputs": {
+        "azuracast_webhook": "POST /webhook/azuracast",
+        "environment": ["AZURACAST_URL", "AZURACAST_API_KEY", "RTMP_ENDPOINT"]
+      },
+      "interface_outputs": {
+        "ffmpeg_process": "spawned process pushing to RTMP",
+        "calls": ["shard-3 track mapping", "shard-5 logging", "shard-6 notifications"]
+      }
+    },
+    {
+      "id": "shard-3",
+      "name": "Track-to-Video Mapping System",
+      "priority": "critical",
+      "complexity": "low",
+      "estimated_days": 2,
+      "dependencies": ["shard-1"],
+      "blocks": ["shard-4", "shard-8"],
+      "parallel_compatible": true,
+      "parallel_group": "backend",
+      "description": "Database schema and API for managing track→MP4 loop mappings with fallbacks",
+      "deliverables": [
+        "track_mapper/schema.sql",
+        "track_mapper/mapper.py",
+        "track_mapper/migrations/",
+        "scripts/seed_mappings.py",
+        "scripts/validate_loops.py"
+      ],
+      "testing_requirements": [
+        "Database schema creates successfully",
+        "Can add/update/retrieve mappings",
+        "Default loop returned for unmapped tracks",
+        "Cache reduces DB queries"
+      ],
+      "skills_required": ["Python", "PostgreSQL", "SQLAlchemy", "database design"],
+      "interface_inputs": {
+        "track_metadata": ["artist", "title", "song_id"],
+        "database": "PostgreSQL connection from shard-1"
+      },
+      "interface_outputs": {
+        "loop_path": "/srv/loops/track123.mp4",
+        "play_count": "incremented asynchronously"
+      }
+    },
+    {
+      "id": "shard-4",
+      "name": "FFmpeg Process Manager",
+      "priority": "critical",
+      "complexity": "high",
+      "estimated_days": 4,
+      "dependencies": ["shard-1", "shard-3"],
+      "blocks": ["shard-7", "shard-9"],
+      "parallel_compatible": false,
+      "description": "Spawn/kill FFmpeg processes with fade transitions and graceful handovers",
+      "deliverables": [
+        "ffmpeg_manager/process_manager.py",
+        "ffmpeg_manager/command_builder.py",
+        "ffmpeg_manager/log_parser.py",
+        "ffmpeg_manager/config.py",
+        "ffmpeg_manager/tests/",
+        "docs/FFMPEG_TUNING.md"
+      ],
+      "testing_requirements": [
+        "Single track plays 10 minutes without errors",
+        "Track switch has <200ms gap",
+        "Fade transitions are smooth",
+        "Auto-restart works",
+        "No zombie processes",
+        "NVENC mode works on GPU systems"
+      ],
+      "skills_required": ["Python", "FFmpeg", "video encoding", "subprocess management", "async programming"],
+      "interface_inputs": {
+        "loop_path": "from shard-3",
+        "audio_url": "http://azuracast:8000/radio",
+        "rtmp_endpoint": "from shard-1",
+        "encoding_config": "environment variables"
+      },
+      "interface_outputs": {
+        "ffmpeg_process": "streaming to RTMP",
+        "status": "to shard-7 monitoring",
+        "errors": "to shard-6 notifications",
+        "logs": "to shard-5 logging"
+      }
+    },
+    {
+      "id": "shard-5",
+      "name": "Logging & Analytics Module",
+      "priority": "high",
+      "complexity": "medium",
+      "estimated_days": 2,
+      "dependencies": ["shard-1"],
+      "blocks": ["shard-11"],
+      "parallel_compatible": true,
+      "parallel_group": "operations",
+      "description": "Structured logging, track history database, and metrics collection",
+      "deliverables": [
+        "logging_module/schema.sql",
+        "logging_module/logger.py",
+        "logging_module/analytics.py",
+        "scripts/export_analytics.py",
+        "scripts/generate_report.py"
+      ],
+      "testing_requirements": [
+        "Track plays logged with all metadata",
+        "Errors captured with context",
+        "Log rotation works",
+        "Analytics queries return correct data",
+        "No performance impact (<10ms overhead)"
+      ],
+      "skills_required": ["Python", "PostgreSQL", "logging best practices", "analytics"],
+      "interface_inputs": {
+        "track_metadata": "from shard-2",
+        "error_events": "from shard-4",
+        "monitoring_events": "from shard-7"
+      },
+      "interface_outputs": {
+        "database_records": "play_history, error_log tables",
+        "log_files": "/var/log/radio/",
+        "analytics_data": "for reporting"
+      }
+    },
+    {
+      "id": "shard-6",
+      "name": "Notification System",
+      "priority": "medium",
+      "complexity": "low",
+      "estimated_days": 2,
+      "dependencies": ["shard-1"],
+      "blocks": ["shard-7"],
+      "parallel_compatible": true,
+      "parallel_group": "operations",
+      "description": "Discord/Slack webhook integration for alerts and status updates",
+      "deliverables": [
+        "notifier/discord.py",
+        "notifier/slack.py",
+        "notifier/notifier.py",
+        "notifier/rate_limiter.py",
+        "notifier/config.py",
+        "scripts/test_notifications.py"
+      ],
+      "testing_requirements": [
+        "Discord webhook sends successfully",
+        "Rate limiting prevents spam",
+        "Embeds format correctly",
+        "Failures don't block main app",
+        "Quiet hours respected"
+      ],
+      "skills_required": ["Python", "webhook APIs", "async HTTP"],
+      "interface_inputs": {
+        "events": "from shard-2, shard-4, shard-7",
+        "webhook_urls": "from environment"
+      },
+      "interface_outputs": {
+        "http_posts": "to Discord/Slack webhooks",
+        "async_delivery": "non-blocking with timeout"
+      }
+    },
+    {
+      "id": "shard-7",
+      "name": "Monitoring & Health Checks",
+      "priority": "high",
+      "complexity": "high",
+      "estimated_days": 3,
+      "dependencies": ["shard-1", "shard-2", "shard-4", "shard-5", "shard-6"],
+      "blocks": ["shard-11"],
+      "parallel_compatible": false,
+      "description": "Prometheus metrics exporter, FFmpeg health monitoring, auto-recovery logic",
+      "deliverables": [
+        "monitoring/metrics.py",
+        "monitoring/health_checks.py",
+        "monitoring/ffmpeg_monitor.py",
+        "monitoring/auto_recovery.py",
+        "monitoring/alerting_rules.yml",
+        "grafana/dashboard.json",
+        "docs/MONITORING.md"
+      ],
+      "testing_requirements": [
+        "Metrics endpoint returns Prometheus format",
+        "All metrics update in real-time",
+        "FFmpeg crash triggers auto-restart <5s",
+        "Frozen stream detected within 30s",
+        "Alerts fire correctly",
+        "Grafana dashboard displays metrics"
+      ],
+      "skills_required": ["Python", "Prometheus", "Grafana", "system monitoring", "auto-recovery patterns"],
+      "interface_inputs": {
+        "ffmpeg_status": "from shard-4",
+        "error_events": "from shard-5",
+        "track_changes": "from shard-2"
+      },
+      "interface_outputs": {
+        "prometheus_metrics": "port 9090",
+        "health_endpoints": "/health/*",
+        "auto_recovery": "restart FFmpeg",
+        "alerts": "to shard-6"
+      }
+    },
+    {
+      "id": "shard-8",
+      "name": "Video Asset Management",
+      "priority": "medium",
+      "complexity": "medium",
+      "estimated_days": 3,
+      "dependencies": ["shard-3"],
+      "blocks": ["shard-11"],
+      "parallel_compatible": true,
+      "parallel_group": "content",
+      "description": "MP4 loop storage, validation, and dynamic overlay generation system",
+      "deliverables": [
+        "asset_manager/validator.py",
+        "asset_manager/overlay_generator.py",
+        "asset_manager/manager.py",
+        "scripts/validate_all_loops.py",
+        "scripts/generate_default_loop.py",
+        "asset_manager/templates/",
+        "docs/ASSET_PREPARATION.md"
+      ],
+      "testing_requirements": [
+        "Validation detects invalid formats",
+        "Metadata extraction accurate",
+        "Overlay generation produces correct PNG",
+        "Overlays render correctly in FFmpeg",
+        "Performance: validation <100ms, overlay <500ms"
+      ],
+      "skills_required": ["Python", "FFmpeg/ffprobe", "Pillow", "image processing"],
+      "interface_inputs": {
+        "video_files": "/srv/loops/",
+        "track_metadata": "for overlay generation"
+      },
+      "interface_outputs": {
+        "validation_results": "to shard-3",
+        "overlay_paths": "to shard-4",
+        "error_reports": "to shard-5"
+      }
+    },
+    {
+      "id": "shard-9",
+      "name": "Advanced Option A - Persistent FFmpeg",
+      "priority": "low",
+      "complexity": "very_high",
+      "estimated_days": 4,
+      "dependencies": ["shard-1", "shard-3", "shard-4"],
+      "blocks": [],
+      "parallel_compatible": true,
+      "parallel_group": "advanced",
+      "description": "Persistent FFmpeg with dual-input crossfade (upgrade path for gapless transitions)",
+      "deliverables": [
+        "advanced/dual_input_ffmpeg.py",
+        "advanced/filter_graph_builder.py",
+        "advanced/input_switcher.py",
+        "advanced/hls_alternative.py",
+        "docs/ADVANCED_TRANSITIONS.md",
+        "Benchmark comparison"
+      ],
+      "testing_requirements": [
+        "Transitions are gapless (0ms audio gap)",
+        "Video crossfade is smooth",
+        "Process stable for 24+ hours",
+        "Resource usage comparable to Option B",
+        "Fallback to Option B if fails"
+      ],
+      "skills_required": ["Python", "Advanced FFmpeg", "filter_complex", "real-time video processing"],
+      "interface_inputs": {
+        "same_as": "shard-4"
+      },
+      "interface_outputs": {
+        "improved_transitions": "0ms gap vs 50-200ms",
+        "same_outputs_as": "shard-4"
+      }
+    },
+    {
+      "id": "shard-10",
+      "name": "Security Layer",
+      "priority": "medium",
+      "complexity": "low",
+      "estimated_days": 2,
+      "dependencies": ["shard-1", "shard-2"],
+      "blocks": ["shard-11"],
+      "parallel_compatible": true,
+      "parallel_group": "security",
+      "description": "Authentication tokens, endpoint security, and license manifest tracking",
+      "deliverables": [
+        "security/auth.py",
+        "security/rate_limiter.py",
+        "security/license_manager.py",
+        "security/config.py",
+        "scripts/generate_token.py",
+        "scripts/validate_licenses.py",
+        "docs/SECURITY.md"
+      ],
+      "testing_requirements": [
+        "Webhook without secret returns 401",
+        "Rate limiting blocks excessive requests",
+        "API endpoints require bearer token",
+        "License manifest tracks all tracks",
+        "Security scan shows no critical vulnerabilities"
+      ],
+      "skills_required": ["Python", "security best practices", "authentication", "rate limiting"],
+      "interface_inputs": {
+        "webhook_requests": "with X-Webhook-Secret header",
+        "license_manifest": "JSON file"
+      },
+      "interface_outputs": {
+        "auth_decisions": "allow/deny",
+        "license_reports": "compliance data",
+        "audit_logs": "to shard-5"
+      }
+    },
+    {
+      "id": "shard-11",
+      "name": "Testing Suite",
+      "priority": "medium",
+      "complexity": "high",
+      "estimated_days": 5,
+      "dependencies": ["shard-1", "shard-2", "shard-3", "shard-4", "shard-5", "shard-6", "shard-7", "shard-8", "shard-10"],
+      "blocks": [],
+      "parallel_compatible": true,
+      "parallel_group": "qa",
+      "description": "Integration tests, load tests, and failover scenario tests",
+      "deliverables": [
+        "tests/unit/",
+        "tests/integration/",
+        "tests/load/locustfile.py",
+        "tests/failover/",
+        "tests/fixtures/",
+        "docker-compose.test.yml",
+        "scripts/run_all_tests.sh",
+        ".github/workflows/ci.yml"
+      ],
+      "testing_requirements": [
+        "All unit tests pass",
+        "Integration tests pass",
+        "Load test: 1000 switches no crashes",
+        "24-hour stream <0.1% downtime",
+        "Failover: auto-recovery within 5s",
+        "Code coverage >80%"
+      ],
+      "skills_required": ["Python", "pytest", "locust", "integration testing", "CI/CD"],
+      "interface_inputs": {
+        "all_application_code": "from all shards"
+      },
+      "interface_outputs": {
+        "test_results": "pass/fail",
+        "coverage_reports": "percentage per module",
+        "performance_benchmarks": "metrics",
+        "ci_integration": "GitHub Actions"
+      }
+    },
+    {
+      "id": "shard-12",
+      "name": "Documentation",
+      "priority": "high",
+      "complexity": "low",
+      "estimated_days": 14,
+      "estimated_continuous": true,
+      "dependencies": ["shard-1"],
+      "blocks": [],
+      "parallel_compatible": true,
+      "parallel_group": "docs",
+      "description": "Deployment guide, configuration reference, and troubleshooting playbook",
+      "deliverables": [
+        "README.md",
+        "docs/DEPLOYMENT.md",
+        "docs/CONFIGURATION.md",
+        "docs/TROUBLESHOOTING.md",
+        "docs/API.md",
+        "docs/ARCHITECTURE.md",
+        "docs/FAQ.md"
+      ],
+      "testing_requirements": [
+        "New user can deploy from scratch",
+        "All env vars documented",
+        "Common issues have solutions",
+        "API docs match implementation",
+        "Diagrams accurate and clear"
+      ],
+      "skills_required": ["Technical writing", "Markdown", "system architecture"],
+      "interface_inputs": {
+        "implementation_details": "from all shards"
+      },
+      "interface_outputs": {
+        "documentation_set": "complete user guides",
+        "troubleshooting_resources": "problem-solution pairs"
+      }
+    }
+  ],
+  "mvp_scope": {
+    "description": "Minimum viable product for 1-week delivery",
+    "shards": ["shard-1", "shard-3", "shard-4", "shard-2", "shard-5", "shard-12"],
+    "estimated_days": 7,
+    "agents_required": 1,
+    "deferred": ["shard-6", "shard-7", "shard-8", "shard-9", "shard-10", "shard-11"]
+  },
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Foundation",
+      "week": 1,
+      "shards": ["shard-1", "shard-3", "shard-5"],
+      "goal": "Core infrastructure ready"
+    },
+    {
+      "phase": 2,
+      "name": "Core Functionality",
+      "week": "2-3",
+      "shards": ["shard-4", "shard-2", "shard-6"],
+      "goal": "Streaming works end-to-end"
+    },
+    {
+      "phase": 3,
+      "name": "Reliability & Monitoring",
+      "week": 4,
+      "shards": ["shard-7", "shard-10", "shard-11"],
+      "goal": "Production-ready reliability"
+    },
+    {
+      "phase": 4,
+      "name": "Enhancement & Polish",
+      "week": 5,
+      "shards": ["shard-8", "shard-11", "shard-12"],
+      "goal": "Quality and documentation"
+    },
+    {
+      "phase": 5,
+      "name": "Advanced (Optional)",
+      "week": "6+",
+      "shards": ["shard-9"],
+      "goal": "Gapless transitions"
+    }
+  ],
+  "parallel_groups": {
+    "backend": {
+      "shards": ["shard-2", "shard-3"],
+      "can_run_together": true
+    },
+    "operations": {
+      "shards": ["shard-5", "shard-6"],
+      "can_run_together": true
+    },
+    "content": {
+      "shards": ["shard-8"],
+      "can_run_together": true
+    },
+    "security": {
+      "shards": ["shard-10"],
+      "can_run_together": true
+    },
+    "qa": {
+      "shards": ["shard-11"],
+      "can_run_together": false
+    },
+    "docs": {
+      "shards": ["shard-12"],
+      "can_run_together": true
+    },
+    "advanced": {
+      "shards": ["shard-9"],
+      "can_run_together": true
+    }
+  },
+  "success_criteria": {
+    "per_shard": [
+      "All deliverables completed",
+      "Tests passing (≥80% coverage)",
+      "Integration tests pass",
+      "Performance meets requirements",
+      "Documentation complete"
+    ],
+    "overall": [
+      "24-hour continuous stream test passes",
+      "Track switches <200ms gap",
+      "Auto-recovery <5s",
+      "Error rate <0.1%",
+      "Resource usage within budget",
+      "Deployment successful from docs"
+    ]
+  },
+  "technology_stack": {
+    "languages": ["Python 3.11+", "Bash"],
+    "frameworks": ["FastAPI", "SQLAlchemy"],
+    "infrastructure": ["Docker", "Docker Compose", "nginx-rtmp"],
+    "database": "PostgreSQL 15+",
+    "monitoring": ["Prometheus", "Grafana"],
+    "testing": ["pytest", "locust", "pytest-cov"],
+    "video": ["FFmpeg 6.0+", "Pillow"],
+    "notifications": "Discord/Slack webhooks",
+    "process_management": "systemd or PM2"
+  },
+  "resource_requirements": {
+    "minimum": {
+      "resolution": "720p",
+      "encoder": "x264",
+      "cpu_cores": 4,
+      "ram_gb": 4,
+      "disk_gb": 50,
+      "upload_mbps": 5
+    },
+    "recommended": {
+      "resolution": "1080p",
+      "encoder": "x264",
+      "cpu_cores": 8,
+      "ram_gb": 8,
+      "disk_gb": 100,
+      "disk_type": "SSD",
+      "upload_mbps": 10
+    },
+    "optimal": {
+      "resolution": "1080p60",
+      "encoder": "NVENC",
+      "cpu_cores": 4,
+      "gpu": "NVIDIA GTX 1650+ (4GB VRAM)",
+      "ram_gb": 8,
+      "disk_gb": 100,
+      "disk_type": "NVMe SSD",
+      "upload_mbps": 15
+    }
+  }
+}
+
+
+
+

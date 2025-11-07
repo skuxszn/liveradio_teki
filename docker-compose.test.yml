@@ -1,0 +1,143 @@
+version: '3.8'
+
+# Docker Compose configuration for testing environment
+# Provides isolated services for running integration and failover tests
+#
+# Usage:
+#   docker-compose -f docker-compose.test.yml up -d
+#   pytest tests/integration/ -v
+#   docker-compose -f docker-compose.test.yml down -v
+
+services:
+  # PostgreSQL database for testing
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: liveradio-postgres-test
+    environment:
+      POSTGRES_USER: test_radio
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: test_radio_db
+    ports:
+      - "5433:5432"  # Different port to avoid conflict with dev
+    volumes:
+      - postgres-test-data:/var/lib/postgresql/data
+      - ./track_mapper/schema.sql:/docker-entrypoint-initdb.d/01-track_mapper.sql
+      - ./logging_module/schema.sql:/docker-entrypoint-initdb.d/02-logging.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_radio"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  # nginx-rtmp for testing RTMP relay
+  nginx-rtmp-test:
+    build:
+      context: ./nginx-rtmp
+      dockerfile: Dockerfile
+    container_name: liveradio-nginx-rtmp-test
+    ports:
+      - "1936:1935"  # Different port to avoid conflict with dev
+      - "8081:8080"  # RTMP stats
+    volumes:
+      - ./nginx-rtmp/nginx-test.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/stat"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - test-network
+
+  # Prometheus for testing metrics
+  prometheus-test:
+    image: prom/prometheus:latest
+    container_name: liveradio-prometheus-test
+    ports:
+      - "9091:9090"  # Different port to avoid conflict with dev
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerting_rules.yml:/etc/prometheus/alerting_rules.yml:ro
+      - prometheus-test-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - test-network
+
+  # Metadata watcher service for testing
+  metadata-watcher-test:
+    build:
+      context: .
+      dockerfile: metadata_watcher/Dockerfile
+    container_name: liveradio-metadata-watcher-test
+    environment:
+      # Database
+      POSTGRES_HOST: postgres-test
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: test_radio
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: test_radio_db
+      
+      # AzuraCast (mock)
+      AZURACAST_URL: http://mock-azuracast:8000
+      AZURACAST_API_KEY: test-api-key
+      
+      # RTMP
+      RTMP_ENDPOINT: rtmp://nginx-rtmp-test:1935/live/stream
+      AUDIO_URL: http://mock-azuracast:8000/radio
+      
+      # Paths
+      LOOPS_DIRECTORY: /srv/loops
+      LOG_LEVEL: DEBUG
+      
+      # Security
+      WEBHOOK_SECRET: test-webhook-secret
+      API_TOKEN: test-api-token
+      
+      # Testing mode
+      ENVIRONMENT: test
+      ENABLE_METRICS: "true"
+      
+      # Notifications (disabled for testing)
+      DISCORD_WEBHOOK_URL: ""
+      SLACK_WEBHOOK_URL: ""
+    ports:
+      - "9001:9000"  # Different port to avoid conflict with dev
+    volumes:
+      - ./tests/fixtures/loops:/srv/loops:ro
+      - ./logs-test:/var/log/radio
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      nginx-rtmp-test:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge
+    name: liveradio-test-network
+
+volumes:
+  postgres-test-data:
+    name: liveradio-postgres-test-data
+  prometheus-test-data:
+    name: liveradio-prometheus-test-data
+
+
+

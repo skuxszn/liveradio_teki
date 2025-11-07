@@ -1,0 +1,99 @@
+# docker-compose.override.yml
+# Local development overrides
+# This file is automatically merged with docker-compose.yml in development
+
+version: '3.8'
+
+services:
+  # Development overrides for nginx-rtmp
+  nginx-rtmp:
+    # Don't push to YouTube in development
+    environment:
+      - YOUTUBE_STREAM_KEY=dev-no-push
+    # Mount config for live editing
+    volumes:
+      - ./nginx-rtmp/nginx.conf:/usr/local/nginx/conf/nginx.conf:rw
+
+  # Development overrides for metadata-watcher
+  metadata-watcher:
+    # Enable hot-reload and debugging
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - PYTHONUNBUFFERED=1
+    # Mount source code for live editing
+    volumes:
+      - ./metadata_watcher:/app:rw
+      - /srv/loops:/srv/loops:rw  # Read-write in dev for testing
+      - /var/log/radio:/var/log/radio:rw
+    # Expose debugger port
+    ports:
+      - "9000:9000"
+      - "5678:5678"  # Python debugger (debugpy)
+    # Override command to enable auto-reload
+    command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "9000", "--reload"]
+
+  # Development overrides for postgres
+  postgres:
+    # Expose database port for local tools
+    ports:
+      - "5432:5432"
+    # Mount scripts for easier development
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./track_mapper/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:rw
+      - ./logging_module/schema.sql:/docker-entrypoint-initdb.d/02_logging_schema.sql:rw
+      - ./scripts:/scripts:ro
+
+  # Development overrides for prometheus
+  prometheus:
+    # Mount config for live editing
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:rw
+      - ./monitoring/alerting_rules.yml:/etc/prometheus/alerting_rules.yml:rw
+      - prometheus_data:/prometheus
+
+  # Optional: Grafana for local development
+  grafana:
+    image: grafana/grafana:latest
+    container_name: radio_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - radio_network
+    depends_on:
+      - prometheus
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: radio_pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@example.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - radio_network
+    depends_on:
+      - postgres
+
+volumes:
+  grafana_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+
+
+

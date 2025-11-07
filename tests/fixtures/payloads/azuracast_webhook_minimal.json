@@ -1,0 +1,15 @@
+{
+  "song": {
+    "id": "456",
+    "artist": "Test Artist",
+    "title": "Test Song",
+    "duration": 200
+  },
+  "station": {
+    "id": "1",
+    "name": "Test Station"
+  }
+}
+
+
+

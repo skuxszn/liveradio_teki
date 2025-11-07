@@ -1,0 +1,197 @@
+version: '3.8'
+
+services:
+  # nginx-rtmp: RTMP relay server that buffers stream to YouTube
+  nginx-rtmp:
+    build:
+      context: ./nginx-rtmp
+      dockerfile: Dockerfile
+    container_name: radio_nginx_rtmp
+    ports:
+      - "1935:1935"  # RTMP port
+      - "8080:8080"  # HTTP stats and health check
+    environment:
+      - YOUTUBE_STREAM_KEY=${YOUTUBE_STREAM_KEY:-dev-no-push}  # Fallback only
+      - DASHBOARD_API_URL=http://dashboard-api:9001
+      - API_TOKEN=${API_TOKEN}
+      - CONFIG_REFRESH_INTERVAL=60
+    volumes:
+      - nginx_logs:/var/log/nginx
+    networks:
+      - radio_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # metadata-watcher: Python service that watches AzuraCast webhooks
+  metadata-watcher:
+    build:
+      context: ./metadata_watcher
+      dockerfile: Dockerfile
+    container_name: radio_metadata_watcher
+    ports:
+      - "${WATCHER_PORT:-9000}:9000"
+    environment:
+      # Dynamic config from dashboard (primary)
+      - DASHBOARD_API_URL=http://dashboard-api:9001
+      - API_TOKEN=${API_TOKEN}
+      - CONFIG_REFRESH_INTERVAL=60
+      # Fallback environment variables (used if dashboard unavailable)
+      - AZURACAST_URL=${AZURACAST_URL}
+      - AZURACAST_API_KEY=${AZURACAST_API_KEY}
+      - AZURACAST_AUDIO_URL=${AZURACAST_AUDIO_URL}
+      - RTMP_ENDPOINT=rtmp://nginx-rtmp:1935/live/stream
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - DEFAULT_LOOP=${DEFAULT_LOOP}
+      - VIDEO_RESOLUTION=${VIDEO_RESOLUTION:-1280:720}
+      - VIDEO_BITRATE=${VIDEO_BITRATE:-3000k}
+      - VIDEO_ENCODER=${VIDEO_ENCODER:-libx264}
+      - FFMPEG_PRESET=${FFMPEG_PRESET:-ultrafast}
+    volumes:
+      - ./loops:/app/loops:ro  # Read-only access to video loops
+      - ./logos:/app/logos:ro  # Read-only access to logo files for watermark
+      - radio_logs:/var/log/radio  # Named volume for logs with correct permissions
+      - stream-control:/app/stream:rw  # Shared volume for dashboard integration
+    networks:
+      - radio_network
+    depends_on:
+      - postgres
+      - nginx-rtmp
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # postgres: Database for track mappings, play history, and logs
+  postgres:
+    image: postgres:15-alpine
+    container_name: radio_postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-radio}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-radio_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./track_mapper/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./logging_module/schema.sql:/docker-entrypoint-initdb.d/02_logging_schema.sql:ro
+    networks:
+      - radio_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-radio}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # prometheus: Metrics collection and monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: radio_prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerting_rules.yml:/etc/prometheus/alerting_rules.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - radio_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # dashboard-api: Dashboard backend API
+  dashboard-api:
+    build:
+      context: ./dashboard_api
+      dockerfile: Dockerfile
+    container_name: radio_dashboard_api
+    ports:
+      - "9001:9001"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-radio}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-radio_db}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - JWT_SECRET=${JWT_SECRET:-change-this-jwt-secret-in-production}
+      - CORS_ORIGINS=["http://localhost:3001","http://localhost:3000"]
+      - DEBUG=${DEBUG:-false}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - API_TOKEN=${API_TOKEN}
+    volumes:
+      - ./loops:/srv/loops:rw  # Changed to read-write for uploads
+      - ./logs:/var/log/radio
+      - stream-control:/app/stream:rw  # Shared volume for stream control integration
+    networks:
+      - radio_network
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # dashboard-ui: Dashboard frontend web UI
+  dashboard-ui:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: radio_dashboard_ui
+    ports:
+      - "3001:80"
+    environment:
+      - VITE_API_URL=http://localhost:9001/api/v1
+    depends_on:
+      - dashboard-api
+    networks:
+      - radio_network
+    restart: unless-stopped
+
+networks:
+  radio_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  nginx_logs:
+    driver: local
+  radio_logs:
+    driver: local
+  stream-control:
+    driver: local
+
+

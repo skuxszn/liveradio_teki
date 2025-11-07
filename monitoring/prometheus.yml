@@ -1,0 +1,66 @@
+# Prometheus configuration for 24/7 Radio Stream monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'radio-stream-monitor'
+    environment: 'production'
+
+# Alertmanager configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - alertmanager:9093
+
+# Load alerting rules
+rule_files:
+  - 'alerting_rules.yml'
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # Metadata watcher service metrics
+  - job_name: 'metadata-watcher'
+    static_configs:
+      - targets: ['metadata-watcher:9000']
+        labels:
+          service: 'metadata-watcher'
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # nginx-rtmp statistics
+  - job_name: 'nginx-rtmp'
+    static_configs:
+      - targets: ['nginx-rtmp:8080']
+        labels:
+          service: 'nginx-rtmp'
+    metrics_path: '/stat'
+    scrape_interval: 30s
+
+  # PostgreSQL exporter (if added later)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: []
+        # - postgres-exporter:9187
+        labels:
+          service: 'postgres'
+
+  # Node exporter for system metrics (if added)
+  - job_name: 'node'
+    static_configs:
+      - targets: []
+        # - node-exporter:9100
+        labels:
+          service: 'system'
+
+
+
+

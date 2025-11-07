@@ -1,0 +1,183 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+docker-compose.override.yml.local
+*.log
+
+# Logs
+logs/
+*.log
+/var/log/radio/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+postgres_data/
+
+# Monitoring
+prometheus_data/
+grafana_data/
+pgadmin_data/
+
+# Video assets (too large for git)
+/srv/loops/*.mp4
+/srv/loops/*.avi
+/srv/loops/*.mov
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Testing
+.tox/
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Secrets
+*.pem
+*.key
+secrets/
+
+# Documentation builds
+docs/_build/
+site/
+
+# ============================================
+# Development artifacts and AI agent notes
+# ============================================
+# SHARD development files
+SHARD_*_COMPLETION_REPORT.md
+SHARD_*_README.md
+QUICKSTART_SHARD*.md
+
+# AI Agent development guides
+AI_AGENT_QUICKSTART.md
+DASHBOARD_AI_PROMPTS.md
+DEVELOPMENT_SHARDS.md
+SHARD_DEPENDENCIES.md
+SIMPLE_PROMPT_FOR_AI.md
+PROMPT_FOR_FULL_DASHBOARD.md
+
+# Delivery and milestone reports
+DELIVERY_*.md
+*_COMPLETION_REPORT.md
+MVP_*.md
+
+# Status and progress notes
+*_BUG_FIXED.md
+*_FIXED.md
+FIXES_APPLIED.md
+SUCCESS_ALL_WORKING.md
+ALL_ISSUES_RESOLVED.md
+ISSUES_RESOLVED.md
+FINAL_STATUS.md
+FINAL_DEPLOYMENT_STATUS.md
+
+# Dashboard development notes
+DASHBOARD_COMPLETE.md
+DASHBOARD_SUMMARY.md
+DASHBOARD_SCHEMA_NOTE.md
+DASHBOARD_ACCESS_GUIDE.md
+START_DASHBOARD_DEVELOPMENT.md
+DASHBOARD_EXECUTIVE_SUMMARY.md
+DASHBOARD_QUICKSTART_MVP.md
+DASHBOARD_QUICK_REFERENCE.md
+YOUR_DASHBOARD_PLAN.md
+DASHBOARD_ROADMAP.md
+
+# Implementation and migration notes
+IMPLEMENTATION_SUMMARY.md
+MIGRATION_FILES_SUMMARY.md
+DYNAMIC_CONFIG_MIGRATION_SUMMARY.md
+MIGRATE_TO_DYNAMIC_CONFIG.md
+
+# Stream integration notes
+STREAM_INTEGRATION.md
+TEST_STREAM_INTEGRATION.md
+INTEGRATE_DASHBOARD_WITH_STREAM.md
+STREAM_STATE_BUG_FIX.md
+STREAM_CONTROL_NOTE.md
+STREAM_OPTIMIZATION_SUMMARY.md
+
+# Setup and test notes
+AZURACAST_*.md
+CONNECTION_TEST_GUIDE.md
+VALIDATION_FIX_NOTE.md
+UPLOAD_FIX_NOTE.md
+DEBUG_STREAM_STARTUP.md
+TEST_LOGIN_NOW.md
+
+# Deployment notes
+DEPLOYMENT_COMPLETE.md
+DEPLOYMENT_TEST_REPORT.md
+PRODUCTION_DEPLOYMENT_REPORT.md
+
+# Misc development notes
+INDEX.md
+START_HERE.md
+TRACK_SWITCHING_FIXED.md
+TEXT_OVERLAY_FEATURE.md
+CRITICAL_BUG_FIXED.md
+LOGO_WATERMARK_GUIDE.md
+
+# Environment backups
+.env.backup.*
+
+# Test scripts (can be removed if you want to keep them)
+test_dashboard_*.sh
+test_youtube_stream.sh
+deploy_dynamic_config.sh
+
+
+
+

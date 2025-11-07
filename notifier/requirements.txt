@@ -1,0 +1,10 @@
+# Dependencies for the notification system
+
+# HTTP client for async webhook requests
+aiohttp>=3.8.0
+
+# Environment variable management
+python-dotenv>=1.0.0
+
+
+
