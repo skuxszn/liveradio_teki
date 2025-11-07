@@ -85,9 +85,7 @@ class Notifier:
 
         # Check quiet hours
         if self.config.is_quiet_hours() and not force:
-            logger.debug(
-                f"Quiet hours active, skipping notification: {notification_type.value}"
-            )
+            logger.debug(f"Quiet hours active, skipping notification: {notification_type.value}")
             self.stats["quiet_hours_blocked"] += 1
             return False
 
@@ -114,9 +112,7 @@ class Notifier:
             success = True  # Assume success for async
         else:
             # Synchronous sending
-            success = self._send_sync(
-                notification_type, title, description, fields, thumbnail_url
-            )
+            success = self._send_sync(notification_type, title, description, fields, thumbnail_url)
 
         # Record the send
         if success and self.config.rate_limit_enabled and not force:
@@ -165,9 +161,7 @@ class Notifier:
 
         # Check quiet hours
         if self.config.is_quiet_hours() and not force:
-            logger.debug(
-                f"Quiet hours active, skipping notification: {notification_type.value}"
-            )
+            logger.debug(f"Quiet hours active, skipping notification: {notification_type.value}")
             self.stats["quiet_hours_blocked"] += 1
             return False
 
@@ -315,9 +309,7 @@ class Notifier:
         Returns:
             True if sent successfully
         """
-        return self.send(
-            NotificationType.ERROR, f"🚨 ERROR: {message}", fields=context, force=True
-        )
+        return self.send(NotificationType.ERROR, f"🚨 ERROR: {message}", fields=context, force=True)
 
     def send_warning(self, message: str, context: Optional[Dict[str, str]] = None) -> bool:
         """
@@ -384,6 +376,3 @@ class Notifier:
             "rate_limited": 0,
             "quiet_hours_blocked": 0,
         }
-
-
-

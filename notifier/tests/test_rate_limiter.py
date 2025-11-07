@@ -230,9 +230,7 @@ class TestRateLimiter:
     def test_no_backoff_when_disabled(self, limiter):
         """Test that backoff doesn't apply when disabled."""
         notification_type = NotificationType.ERROR
-        config = RateLimitConfig(
-            max_per_minute=100, max_per_hour=1000, exponential_backoff=False
-        )
+        config = RateLimitConfig(max_per_minute=100, max_per_hour=1000, exponential_backoff=False)
         content = "Test error message"
 
         # Send same content twice immediately
@@ -261,6 +259,3 @@ class TestRateLimiter:
         # Backoff should be capped at 1 hour (3600 seconds)
         content_hash = hash(content)
         assert limiter._backoff_delays[content_hash] <= 3600.0
-
-
-

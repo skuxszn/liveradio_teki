@@ -30,8 +30,10 @@ class AuditLog(Base):
 
 # Pydantic models for API
 
+
 class AuditLogResponse(BaseModel):
     """Audit log response model."""
+
     id: int
     user_id: Optional[int]
     action: str
@@ -45,4 +47,3 @@ class AuditLogResponse(BaseModel):
 
     class Config:
         from_attributes = True
-

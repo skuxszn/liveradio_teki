@@ -73,9 +73,7 @@ class TestFFmpegCommandBuilder:
         with pytest.raises(ValueError, match="loop_path cannot be empty"):
             command_builder.build_command("")
 
-    def test_video_encoding_options(
-        self, command_builder: FFmpegCommandBuilder, test_loop_file
-    ):
+    def test_video_encoding_options(self, command_builder: FFmpegCommandBuilder, test_loop_file):
         """Test video encoding options in command."""
         cmd = command_builder.build_command(str(test_loop_file))
 
@@ -85,9 +83,7 @@ class TestFFmpegCommandBuilder:
         assert "-g" in cmd  # Keyframe interval
         assert "-pix_fmt" in cmd  # Pixel format
 
-    def test_audio_encoding_options(
-        self, command_builder: FFmpegCommandBuilder, test_loop_file
-    ):
+    def test_audio_encoding_options(self, command_builder: FFmpegCommandBuilder, test_loop_file):
         """Test audio encoding options in command."""
         cmd = command_builder.build_command(str(test_loop_file))
 
@@ -104,9 +100,7 @@ class TestFFmpegCommandBuilder:
         assert "-stream_loop" in cmd
         assert "-1" in cmd  # Loop indefinitely
 
-    def test_get_command_string(
-        self, command_builder: FFmpegCommandBuilder, test_loop_file
-    ):
+    def test_get_command_string(self, command_builder: FFmpegCommandBuilder, test_loop_file):
         """Test getting command as string."""
         cmd_str = command_builder.get_command_string(str(test_loop_file))
 
@@ -114,9 +108,7 @@ class TestFFmpegCommandBuilder:
         assert "ffmpeg" in cmd_str
         assert str(test_loop_file) in cmd_str
 
-    def test_validate_encoding_compatibility(
-        self, command_builder: FFmpegCommandBuilder
-    ):
+    def test_validate_encoding_compatibility(self, command_builder: FFmpegCommandBuilder):
         """Test encoding compatibility validation."""
         # Currently always returns True, but should not raise errors
         result = command_builder.validate_encoding_compatibility()
@@ -208,6 +200,3 @@ class TestCommandBuilderPrivateMethods:
         assert "-f" in options
         assert "flv" in options
         assert "rtmp://test/live" in options
-
-
-

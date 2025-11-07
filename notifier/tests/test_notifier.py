@@ -107,7 +107,9 @@ class TestNotifier:
         """Test successful asynchronous send."""
         notifier = Notifier(config)
 
-        with patch.object(notifier.discord_client, "send_notification", new=AsyncMock(return_value=True)):
+        with patch.object(
+            notifier.discord_client, "send_notification", new=AsyncMock(return_value=True)
+        ):
             result = await notifier.send_async(NotificationType.INFO, "Test")
 
             assert result is True
@@ -246,7 +248,7 @@ class TestNotifier:
     def test_rate_limiting_integration(self, config):
         """Test rate limiting integration."""
         from notifier.config import RateLimitConfig
-        
+
         config.rate_limit_enabled = True
         rate_config = RateLimitConfig(max_per_minute=2, max_per_hour=100)
         config.get_rate_limit.return_value = rate_config
@@ -264,7 +266,9 @@ class TestNotifier:
 
     def test_exception_handling(self, notifier):
         """Test that exceptions in clients don't crash the notifier."""
-        with patch.object(notifier.discord_client, "send_sync", side_effect=Exception("Test error")):
+        with patch.object(
+            notifier.discord_client, "send_sync", side_effect=Exception("Test error")
+        ):
             result = notifier.send(NotificationType.INFO, "Test")
 
             # Should return False but not raise exception
@@ -280,7 +284,9 @@ class TestNotifier:
 
         with patch.object(
             notifier.discord_client, "send_notification", new=AsyncMock(return_value=True)
-        ), patch.object(notifier.slack_client, "send_notification", new=AsyncMock(return_value=True)):
+        ), patch.object(
+            notifier.slack_client, "send_notification", new=AsyncMock(return_value=True)
+        ):
             result = await notifier.send_async(NotificationType.INFO, "Test")
 
             assert result is True
@@ -291,4 +297,3 @@ class TestNotifier:
 
         assert notifier.config is not None
         assert isinstance(notifier.config, NotificationConfig)
-

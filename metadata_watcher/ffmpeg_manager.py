@@ -74,7 +74,7 @@ class FFmpegProcess:
         if self.is_running:
             logger.info(f"Sending SIGTERM to FFmpeg process {self.pid}")
             self.process.terminate()
-        
+
         # Close log handle
         if self.log_handle:
             try:
@@ -118,15 +118,15 @@ class FFmpegManager:
         self.restart_attempts: Dict[str, int] = {}
         self.last_restart_time: Dict[str, float] = {}
         self.last_error: Optional[str] = None
-        
+
         # Shared volume paths for dashboard integration
         self.control_dir = Path("/app/stream")
         self.status_file = self.control_dir / "status.json"
         self.control_file = self.control_dir / "control.json"
-        
+
         # Log directory for FFmpeg output
         self.log_dir = Path("/var/log/radio")
-        
+
         # Ensure directories exist
         try:
             self.control_dir.mkdir(parents=True, exist_ok=True)
@@ -177,7 +177,7 @@ class FFmpegManager:
                     logger.warning(f"Old process {old_pid} didn't exit gracefully, killing")
                     self.current_process.kill()
                     self.current_process.wait(timeout=2.0)
-                
+
                 # Give nginx-rtmp a moment to clean up the connection
                 await asyncio.sleep(0.5)
 
@@ -185,7 +185,9 @@ class FFmpegManager:
             cmd = self._build_ffmpeg_command(loop_path, artist, title)
 
             # Spawn new process (with optional cooldown bypass for webhooks)
-            new_process = await self._spawn_process(track_key, loop_path, cmd, skip_cooldown=skip_cooldown)
+            new_process = await self._spawn_process(
+                track_key, loop_path, cmd, skip_cooldown=skip_cooldown
+            )
             if not new_process:
                 logger.error(f"Failed to spawn FFmpeg process for {track_key}")
                 return False
@@ -196,10 +198,10 @@ class FFmpegManager:
                 f"Track switch complete: {track_key} (PID: {new_process.pid}, "
                 f"loop: {loop_path.name})"
             )
-            
+
             # Update status file for dashboard
             self.update_status_file()
-            
+
             return True
 
     async def _spawn_process(
@@ -222,13 +224,13 @@ class FFmpegManager:
         """
         # Get current attempt count
         attempts = self.restart_attempts.get(track_key, 0)
-        
+
         # Check restart cooldown (only for automatic restarts, not webhooks)
         if not skip_cooldown:
             if not self._check_restart_cooldown(track_key):
                 logger.error(f"Restart cooldown active for {track_key}")
                 return None
-            
+
             # Check restart attempts (only for automatic restarts)
             if attempts >= self.config.max_restart_attempts:
                 logger.error(
@@ -244,10 +246,10 @@ class FFmpegManager:
         try:
             # Create log file for this stream session
             log_file = self.log_dir / f"ffmpeg_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-            
+
             # Open log file for FFmpeg stderr/stdout
             log_handle = open(log_file, "w")
-            
+
             # Spawn process with stderr/stdout to log file
             process = subprocess.Popen(
                 cmd,
@@ -265,13 +267,13 @@ class FFmpegManager:
                 log_handle.close()
                 with open(log_file, "r") as f:
                     error_output = f.read()
-                
+
                 logger.error(f"FFmpeg process exited immediately. Error output:\n{error_output}")
-                
+
                 # Write error to status file for dashboard visibility
                 self.last_error = error_output[-500:] if len(error_output) > 500 else error_output
                 self.update_status_file()
-                
+
                 return None
 
             # Create wrapper with log file reference
@@ -315,9 +317,9 @@ class FFmpegManager:
         width, height = self.config.video_resolution.split(":")
 
         # Check if logo is enabled
-        enable_logo = getattr(self.config, 'enable_logo_watermark', False)
+        enable_logo = getattr(self.config, "enable_logo_watermark", False)
         if enable_logo and isinstance(enable_logo, str):
-            enable_logo = enable_logo.lower() == 'true'
+            enable_logo = enable_logo.lower() == "true"
 
         # Build base command
         cmd = [
@@ -330,43 +332,45 @@ class FFmpegManager:
             "-i",
             self.config.azuracast_audio_url,  # Audio input from AzuraCast
         ]
-        
+
         # Add logo as third input if enabled
         if enable_logo:
-            logo_path = getattr(self.config, 'logo_path', '/app/logos/logo.png')
+            logo_path = getattr(self.config, "logo_path", "/app/logos/logo.png")
             cmd.extend(["-loop", "1", "-i", logo_path])
             # When using filter_complex, we don't map here - we map after the filter
         else:
             # No logo, map video and audio normally
-            cmd.extend([
-                "-map",
-                "0:v",  # Map video from first input
-                "-map",
-                "1:a",  # Map audio from second input
-            ])
+            cmd.extend(
+                [
+                    "-map",
+                    "0:v",  # Map video from first input
+                    "-map",
+                    "1:a",  # Map audio from second input
+                ]
+            )
 
         # Video filters
         filters = []
-        
+
         # Add fade if configured
         if self.config.fade_duration > 0:
             filters.append(f"fade=t=in:st=0:d={self.config.fade_duration}")
-        
+
         # Scale to target resolution
         filters.append(f"scale={width}:{height}")
-        
+
         # Add text overlay - Now Playing info (if enabled)
         # Check if text overlay is enabled (default: false for better performance)
-        enable_overlay = getattr(self.config, 'enable_text_overlay', False)
-        
+        enable_overlay = getattr(self.config, "enable_text_overlay", False)
+
         if enable_overlay and isinstance(enable_overlay, str):
-            enable_overlay = enable_overlay.lower() == 'true'
-        
+            enable_overlay = enable_overlay.lower() == "true"
+
         if enable_overlay:
             # Escape single quotes and special characters in text
             artist_escaped = artist.replace("'", "'\\\\\\''").replace(":", "\\:")
             title_escaped = title.replace("'", "'\\\\\\''").replace(":", "\\:")
-            
+
             # Position: bottom center, with semi-transparent black background
             text_filter = (
                 f"drawtext="
@@ -387,17 +391,17 @@ class FFmpegManager:
                 f"box=1:boxcolor=black@0.6:boxborderw=10"
             )
             filters.append(text_filter)
-        
+
         # Pixel format for compatibility
         filters.append("format=yuv420p")
-        
+
         # Build the video filter
         vf_string = ",".join(filters)
-        
+
         # Add logo watermark if enabled (uses filter_complex)
         if enable_logo:
-            logo_opacity = getattr(self.config, 'logo_opacity', 0.8)
-            
+            logo_opacity = getattr(self.config, "logo_opacity", 0.8)
+
             # Use filter_complex for full-frame logo overlay
             # Input 0: video loop, Input 1: audio, Input 2: logo
             # Scale logo to match video resolution, then overlay
@@ -406,11 +410,16 @@ class FFmpegManager:
                 f"[2:v]scale={width}:{height},format=rgba,colorchannelmixer=aa={logo_opacity}[logo];"
                 f"[v0][logo]overlay=0:0[vout]"  # Output to [vout] stream
             )
-            cmd.extend([
-                "-filter_complex", filter_complex,
-                "-map", "[vout]",  # Map the filter output as video
-                "-map", "1:a"  # Map audio from second input
-            ])
+            cmd.extend(
+                [
+                    "-filter_complex",
+                    filter_complex,
+                    "-map",
+                    "[vout]",  # Map the filter output as video
+                    "-map",
+                    "1:a",  # Map audio from second input
+                ]
+            )
         else:
             # No logo, use simple video filter
             cmd.extend(["-vf", vf_string])
@@ -525,7 +534,7 @@ class FFmpegManager:
                 "started_at": self.current_process.started_at.isoformat(),
             },
         }
-    
+
     def update_status_file(self) -> None:
         """Write current status to shared status file for dashboard integration."""
         try:
@@ -533,54 +542,56 @@ class FFmpegManager:
                 "running": bool(self.current_process and self.current_process.is_running),
                 "timestamp": datetime.now().isoformat(),
             }
-            
+
             if self.current_process and self.current_process.is_running:
                 # Parse artist and title from track_key (format: "artist - title")
                 track_parts = self.current_process.track_key.split(" - ", 1)
                 artist = track_parts[0] if len(track_parts) > 0 else "Unknown"
                 title = track_parts[1] if len(track_parts) > 1 else "Unknown"
-                
-                status_data.update({
-                    "pid": self.current_process.pid,
-                    "current_track": {
-                        "artist": artist,
-                        "title": title,
-                        "track_key": self.current_process.track_key,
-                        "uptime_seconds": int(self.current_process.uptime_seconds),
-                    },
-                    "started_at": self.current_process.started_at.isoformat(),
-                })
+
+                status_data.update(
+                    {
+                        "pid": self.current_process.pid,
+                        "current_track": {
+                            "artist": artist,
+                            "title": title,
+                            "track_key": self.current_process.track_key,
+                            "uptime_seconds": int(self.current_process.uptime_seconds),
+                        },
+                        "started_at": self.current_process.started_at.isoformat(),
+                    }
+                )
             else:
                 status_data["current_track"] = None
                 status_data["pid"] = None
                 status_data["started_at"] = None
-                
+
                 # Add last error if available
                 if self.last_error:
                     status_data["last_error"] = self.last_error
-            
+
             # Write atomically by writing to temp file then renaming
             temp_file = self.status_file.with_suffix(".tmp")
             with open(temp_file, "w") as f:
                 json.dump(status_data, f, indent=2)
             temp_file.replace(self.status_file)
-            
+
         except Exception as e:
             logger.error(f"Failed to update status file: {e}", exc_info=True)
-    
+
     async def check_control_commands(self) -> None:
         """Check for control commands from dashboard and execute them."""
         if not self.control_file.exists():
             return
-        
+
         try:
             # Read and parse command
             with open(self.control_file, "r") as f:
                 command = json.load(f)
-            
+
             action = command.get("action")
             logger.info(f"Received control command: {action}")
-            
+
             # Execute command based on action
             if action == "start":
                 # Start stream from stopped state
@@ -589,19 +600,23 @@ class FFmpegManager:
                 else:
                     # Validate configuration before starting
                     validation_errors = []
-                    
+
                     # Check default loop exists
                     if not self.config.default_loop.exists():
-                        validation_errors.append(f"Default loop file not found: {self.config.default_loop}")
-                    
+                        validation_errors.append(
+                            f"Default loop file not found: {self.config.default_loop}"
+                        )
+
                     # Check audio URL is reachable
                     try:
                         response = requests.head(self.config.azuracast_audio_url, timeout=5)
                         if response.status_code >= 400:
-                            validation_errors.append(f"Audio source unreachable (HTTP {response.status_code}): {self.config.azuracast_audio_url}")
+                            validation_errors.append(
+                                f"Audio source unreachable (HTTP {response.status_code}): {self.config.azuracast_audio_url}"
+                            )
                     except Exception as e:
                         validation_errors.append(f"Cannot reach audio source: {e}")
-                    
+
                     # Check RTMP endpoint connectivity
                     try:
                         # Parse RTMP URL: rtmp://host:port/path
@@ -613,17 +628,19 @@ class FFmpegManager:
                         else:
                             rtmp_host = host_port
                             rtmp_port = 1935  # Default RTMP port
-                        
+
                         # Basic TCP check
                         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         sock.settimeout(2)
                         result = sock.connect_ex((rtmp_host, rtmp_port))
                         sock.close()
                         if result != 0:
-                            validation_errors.append(f"RTMP server not reachable: {self.config.rtmp_endpoint}")
+                            validation_errors.append(
+                                f"RTMP server not reachable: {self.config.rtmp_endpoint}"
+                            )
                     except Exception as e:
                         validation_errors.append(f"RTMP connectivity check failed: {e}")
-                    
+
                     if validation_errors:
                         # Write errors to status file
                         self.last_error = "; ".join(validation_errors)
@@ -631,19 +648,19 @@ class FFmpegManager:
                         logger.error(f"Stream start validation failed: {validation_errors}")
                         self.control_file.unlink()
                         return
-                    
+
                     # Validation passed, start stream
                     artist = command.get("artist", "Radio")
                     title = command.get("title", "Stream")
-                    
+
                     # Use default loop for starting
                     loop_path = self.config.default_loop
                     track_key = f"{artist} - {title}"
-                    
+
                     # Build FFmpeg command and spawn process
                     cmd = self._build_ffmpeg_command(loop_path, artist, title)
                     new_process = await self._spawn_process(track_key, loop_path, cmd)
-                    
+
                     if new_process:
                         self.current_process = new_process
                         self.last_error = None  # Clear any previous errors
@@ -651,11 +668,11 @@ class FFmpegManager:
                         logger.info(f"Stream started via dashboard command: {artist} - {title}")
                     else:
                         logger.error("Failed to start stream")
-            
+
             elif action == "stop":
                 await self.cleanup()
                 logger.info("Stream stopped via dashboard command")
-            
+
             elif action == "restart":
                 # Get current track info before restart
                 if self.current_process:
@@ -663,15 +680,15 @@ class FFmpegManager:
                     loop_path = self.current_process.loop_path
                     artist = command.get("artist", "Radio")
                     title = command.get("title", "Stream")
-                    
+
                     # Cleanup current process
                     await self.cleanup()
                     await asyncio.sleep(2)
-                    
+
                     # Start new process
                     cmd = self._build_ffmpeg_command(loop_path, artist, title)
                     new_process = await self._spawn_process(track_key, loop_path, cmd)
-                    
+
                     if new_process:
                         self.current_process = new_process
                         self.update_status_file()
@@ -680,10 +697,10 @@ class FFmpegManager:
                         logger.error("Failed to restart stream")
                 else:
                     logger.warning("Cannot restart: no current process")
-            
+
             # Remove command file after processing
             self.control_file.unlink()
-            
+
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in control file: {e}")
             # Remove invalid command file
@@ -691,7 +708,7 @@ class FFmpegManager:
                 self.control_file.unlink()
             except Exception:
                 pass
-        
+
         except Exception as e:
             logger.error(f"Error processing control command: {e}", exc_info=True)
             # Remove command file to prevent infinite loop
@@ -710,8 +727,7 @@ class FFmpegManager:
                 if self.current_process.is_running:
                     self.current_process.kill()
                     self.current_process.wait(timeout=2.0)
-            
+
             # Clear current process and update status
             self.current_process = None
             self.update_status_file()
-

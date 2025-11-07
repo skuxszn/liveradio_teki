@@ -55,7 +55,7 @@ class Config:
 
     # Text overlay (with default)
     enable_text_overlay: bool = False
-    
+
     # Logo watermark (with defaults)
     enable_logo_watermark: bool = False
     logo_path: str = "/app/logos/logo.png"
@@ -183,5 +183,3 @@ class Config:
         # Check default loop exists (if not in test mode)
         if self.environment != "testing" and not self.default_loop.exists():
             raise ValueError(f"Default loop file not found: {self.default_loop}")
-
-

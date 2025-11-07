@@ -26,7 +26,7 @@ class TestFFmpegLogParser:
     def test_parse_metrics_line(self, log_parser: FFmpegLogParser):
         """Test parsing FFmpeg metrics output."""
         line = "frame=  100 fps= 30 q=28.0 size=512kB time=00:00:03.33 bitrate=1258.3kbits/s speed=1.00x"
-        
+
         log_parser.parse_line(line)
 
         assert log_parser.metrics.frame_count == 100
@@ -38,7 +38,7 @@ class TestFFmpegLogParser:
     def test_parse_metrics_with_dup_drop(self, log_parser: FFmpegLogParser):
         """Test parsing metrics with dup/drop frames."""
         line = "frame=  200 fps= 30 q=28.0 size=1024kB time=00:00:06.66 bitrate=1258.3kbits/s dup=5 drop=3 speed=1.00x"
-        
+
         log_parser.parse_line(line)
 
         assert log_parser.metrics.frame_count == 200
@@ -48,7 +48,7 @@ class TestFFmpegLogParser:
     def test_parse_connection_error(self, log_parser: FFmpegLogParser):
         """Test parsing connection error."""
         line = "[error] Connection refused"
-        
+
         error = log_parser.parse_line(line)
 
         assert error is not None
@@ -59,7 +59,7 @@ class TestFFmpegLogParser:
     def test_parse_file_not_found(self, log_parser: FFmpegLogParser):
         """Test parsing file not found error."""
         line = "[fatal] No such file or directory: /path/to/missing.mp4"
-        
+
         error = log_parser.parse_line(line)
 
         assert error is not None
@@ -69,7 +69,7 @@ class TestFFmpegLogParser:
     def test_parse_rtmp_error(self, log_parser: FFmpegLogParser):
         """Test parsing RTMP error."""
         line = "[error] RTMP connection error: stream closed"
-        
+
         error = log_parser.parse_line(line)
 
         assert error is not None
@@ -78,7 +78,7 @@ class TestFFmpegLogParser:
     def test_parse_encoder_error(self, log_parser: FFmpegLogParser):
         """Test parsing encoder error."""
         line = "[error] Encoding failed"
-        
+
         error = log_parser.parse_line(line)
 
         assert error is not None
@@ -87,7 +87,7 @@ class TestFFmpegLogParser:
     def test_parse_memory_error(self, log_parser: FFmpegLogParser):
         """Test parsing memory error."""
         line = "[error] Cannot allocate memory"
-        
+
         error = log_parser.parse_line(line)
 
         assert error is not None
@@ -98,7 +98,7 @@ class TestFFmpegLogParser:
         # Warnings need to match a pattern or will be ignored if they don't have error/fatal/panic level
         # For now, just verify that unknown errors with error level get detected
         line = "[error] Unknown error type"
-        
+
         error = log_parser.parse_line(line)
 
         assert error is not None
@@ -115,7 +115,7 @@ class TestFFmpegLogParser:
     def test_error_deduplication(self, log_parser: FFmpegLogParser):
         """Test that duplicate errors are not added multiple times."""
         line = "[error] Connection refused"
-        
+
         log_parser.parse_line(line)
         log_parser.parse_line(line)  # Same error again
         log_parser.parse_line(line)  # And again
@@ -195,7 +195,9 @@ class TestFFmpegLogParser:
     def test_reset(self, log_parser: FFmpegLogParser):
         """Test resetting parser state."""
         # Add some data
-        log_parser.parse_line("frame=  100 fps= 30 q=28.0 size=512kB time=00:00:03.33 bitrate=1258.3kbits/s speed=1.00x")
+        log_parser.parse_line(
+            "frame=  100 fps= 30 q=28.0 size=512kB time=00:00:03.33 bitrate=1258.3kbits/s speed=1.00x"
+        )
         log_parser.parse_line("[error] Some error")
 
         # Reset
@@ -267,4 +269,3 @@ class TestFFmpegError:
         assert error.level == LogLevel.ERROR
         assert error.error_type == ErrorType.CONNECTION_FAILED
         assert "Connection refused" in error.message
-

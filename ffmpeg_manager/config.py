@@ -287,4 +287,3 @@ def list_presets() -> Dict[EncodingPreset, str]:
         Dict mapping preset enum to human-readable name
     """
     return {preset: config.name for preset, config in ENCODING_PRESETS.items()}
-

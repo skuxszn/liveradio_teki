@@ -138,5 +138,3 @@ async def validate_api_request(request: Request, config: Optional[SecurityConfig
         raise APIAuthError("Invalid API token")
 
     return True
-
-

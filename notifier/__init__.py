@@ -13,7 +13,7 @@ Main components:
 
 Example:
     from notifier import Notifier, NotificationType
-    
+
     notifier = Notifier()
     notifier.send(
         NotificationType.TRACK_CHANGE,
@@ -27,6 +27,3 @@ from notifier.notifier import Notifier
 
 __version__ = "1.0.0"
 __all__ = ["Notifier", "NotificationConfig", "NotificationType"]
-
-
-

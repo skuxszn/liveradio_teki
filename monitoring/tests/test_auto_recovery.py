@@ -236,6 +236,3 @@ class TestAutoRecovery:
         recovery.set_alert_callback(callback)
 
         assert recovery._alert_callback == callback
-
-
-

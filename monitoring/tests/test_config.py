@@ -68,6 +68,3 @@ class TestMonitoringConfig:
 
         assert isinstance(config, MonitoringConfig)
         assert config.metrics_port == 9000
-
-
-

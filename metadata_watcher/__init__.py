@@ -15,4 +15,3 @@ from ffmpeg_manager import FFmpegManager
 from track_resolver import TrackResolver
 
 __all__ = ["Config", "FFmpegManager", "TrackResolver"]
-

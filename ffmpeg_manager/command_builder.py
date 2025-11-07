@@ -146,34 +146,58 @@ class FFmpegCommandBuilder:
         # Codec-specific options
         if enc.use_nvenc:
             # NVENC options
-            options.extend([
-                "-preset", enc.video_preset,
-                "-rc", "vbr",  # Variable bitrate
-                "-cq", "23",  # Constant quality (lower = better, 0-51)
-                "-b:v", enc.video_bitrate,
-                "-maxrate", enc.video_bitrate,
-                "-bufsize", f"{int(enc.video_bitrate.rstrip('k')) * 2}k",
-                "-profile:v", "high",
-                "-level", "4.2",
-            ])
+            options.extend(
+                [
+                    "-preset",
+                    enc.video_preset,
+                    "-rc",
+                    "vbr",  # Variable bitrate
+                    "-cq",
+                    "23",  # Constant quality (lower = better, 0-51)
+                    "-b:v",
+                    enc.video_bitrate,
+                    "-maxrate",
+                    enc.video_bitrate,
+                    "-bufsize",
+                    f"{int(enc.video_bitrate.rstrip('k')) * 2}k",
+                    "-profile:v",
+                    "high",
+                    "-level",
+                    "4.2",
+                ]
+            )
         else:
             # x264 options
-            options.extend([
-                "-preset", enc.video_preset,
-                "-tune", "zerolatency",  # Optimize for low latency
-                "-b:v", enc.video_bitrate,
-                "-maxrate", enc.video_bitrate,
-                "-bufsize", f"{int(enc.video_bitrate.rstrip('k')) * 2}k",
-                "-profile:v", "high",
-                "-level", "4.2",
-            ])
+            options.extend(
+                [
+                    "-preset",
+                    enc.video_preset,
+                    "-tune",
+                    "zerolatency",  # Optimize for low latency
+                    "-b:v",
+                    enc.video_bitrate,
+                    "-maxrate",
+                    enc.video_bitrate,
+                    "-bufsize",
+                    f"{int(enc.video_bitrate.rstrip('k')) * 2}k",
+                    "-profile:v",
+                    "high",
+                    "-level",
+                    "4.2",
+                ]
+            )
 
         # Keyframe interval (GOP size)
-        options.extend([
-            "-g", str(enc.keyframe_interval),
-            "-keyint_min", str(enc.keyframe_interval),
-            "-sc_threshold", "0",  # Disable scene change detection
-        ])
+        options.extend(
+            [
+                "-g",
+                str(enc.keyframe_interval),
+                "-keyint_min",
+                str(enc.keyframe_interval),
+                "-sc_threshold",
+                "0",  # Disable scene change detection
+            ]
+        )
 
         # Pixel format
         options.extend(["-pix_fmt", enc.pixel_format])
@@ -213,7 +237,8 @@ class FFmpegCommandBuilder:
     def _build_output_options(self, rtmp_endpoint: str) -> List[str]:
         """Build output format options."""
         return [
-            "-f", "flv",  # Flash Video format for RTMP
+            "-f",
+            "flv",  # Flash Video format for RTMP
             rtmp_endpoint,
         ]
 
@@ -270,9 +295,7 @@ def create_command_builder(config: Optional[FFmpegConfig] = None) -> FFmpegComma
     """
     if config is None:
         from ffmpeg_manager.config import get_config
+
         config = get_config()
 
     return FFmpegCommandBuilder(config)
-
-
-

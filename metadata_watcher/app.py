@@ -102,7 +102,7 @@ class ManualSwitchRequest(BaseModel):
 async def background_task_loop():
     """Background task to check control commands and update status."""
     logger.info("Starting background task loop...")
-    
+
     while True:
         try:
             # Check for control commands from dashboard
@@ -110,7 +110,7 @@ async def background_task_loop():
                 await ffmpeg_manager.check_control_commands()
                 # Update status file periodically
                 ffmpeg_manager.update_status_file()
-                
+
                 # Check if FFmpeg process died unexpectedly
                 if ffmpeg_manager.current_process:
                     if not ffmpeg_manager.current_process.is_running:
@@ -120,17 +120,21 @@ async def background_task_loop():
                                 with open(ffmpeg_manager.current_process.log_file, "r") as f:
                                     error_lines = f.readlines()[-20:]  # Last 20 lines
                                     error_msg = "".join(error_lines)
-                                
+
                                 logger.error(f"FFmpeg process died unexpectedly:\n{error_msg}")
-                                ffmpeg_manager.last_error = f"Process crashed: {error_msg[-300:]}" if len(error_msg) > 300 else f"Process crashed: {error_msg}"
+                                ffmpeg_manager.last_error = (
+                                    f"Process crashed: {error_msg[-300:]}"
+                                    if len(error_msg) > 300
+                                    else f"Process crashed: {error_msg}"
+                                )
                                 ffmpeg_manager.current_process = None
                                 ffmpeg_manager.update_status_file()
                             except Exception as e:
                                 logger.error(f"Error reading crash log: {e}")
-            
+
             # Sleep for 1 second before next check
             await asyncio.sleep(1.0)
-            
+
         except asyncio.CancelledError:
             logger.info("Background task cancelled")
             break
@@ -141,38 +145,45 @@ async def background_task_loop():
 
 async def on_config_change(new_config: Config, changed_keys: list):
     """Handle configuration changes.
-    
+
     Args:
         new_config: New configuration object.
         changed_keys: List of keys that changed.
     """
     global config, ffmpeg_manager, track_resolver
-    
+
     logger.info(f"Configuration updated: {', '.join(changed_keys)}")
-    
+
     # Update global config
     config = new_config
-    
+
     # UPDATE ffmpeg_manager config so it uses new settings!
     if ffmpeg_manager:
         ffmpeg_manager.config = new_config
         logger.info("FFmpeg manager config updated with new settings")
-    
+
     # Update track_resolver config
     if track_resolver:
         track_resolver.config = new_config
         logger.info("Track resolver config updated with new settings")
-    
+
     # Critical changes that require restart (RTMP, video settings, etc.)
     critical_keys = {
-        'azuracast_audio_url', 'rtmp_endpoint', 'video_resolution', 
-        'video_bitrate', 'audio_bitrate', 'video_encoder', 'ffmpeg_preset'
+        "azuracast_audio_url",
+        "rtmp_endpoint",
+        "video_resolution",
+        "video_bitrate",
+        "audio_bitrate",
+        "video_encoder",
+        "ffmpeg_preset",
     }
-    
+
     if any(key in critical_keys for key in changed_keys):
         logger.warning("Critical configuration changed - stream restart may be required")
         if ffmpeg_manager:
-            ffmpeg_manager.last_error = f"Configuration updated: {', '.join(changed_keys)}. Please restart stream."
+            ffmpeg_manager.last_error = (
+                f"Configuration updated: {', '.join(changed_keys)}. Please restart stream."
+            )
             ffmpeg_manager.update_status_file()
 
 
@@ -189,6 +200,7 @@ async def lifespan(app: FastAPI):
     try:
         # Load initial configuration from env (fallback)
         import os
+
         config = Config.from_env()
         config.validate()
         logger.info(f"Initial configuration loaded from environment: {config.environment}")
@@ -196,15 +208,15 @@ async def lifespan(app: FastAPI):
         # Initialize config fetcher for dynamic updates
         dashboard_url = os.getenv("DASHBOARD_API_URL", "http://dashboard-api:9001")
         api_token = os.getenv("API_TOKEN", "")
-        
+
         if dashboard_url and api_token:
             logger.info(f"Initializing dynamic config fetcher: {dashboard_url}")
             config_fetcher = ConfigFetcher(
                 dashboard_url=dashboard_url,
                 api_token=api_token,
-                refresh_interval=int(os.getenv("CONFIG_REFRESH_INTERVAL", "60"))
+                refresh_interval=int(os.getenv("CONFIG_REFRESH_INTERVAL", "60")),
             )
-            
+
             # Try to fetch initial config from dashboard
             dashboard_config = await config_fetcher.fetch_config()
             if dashboard_config:
@@ -212,18 +224,20 @@ async def lifespan(app: FastAPI):
                 logger.info("Using configuration from dashboard database")
             else:
                 logger.warning("Failed to fetch config from dashboard, using environment variables")
-            
+
             # Start auto-refresh in background
             config_refresh_task = asyncio.create_task(
                 config_fetcher.start_auto_refresh(callback=on_config_change)
             )
         else:
-            logger.warning("No DASHBOARD_API_URL or API_TOKEN - using static config from environment")
+            logger.warning(
+                "No DASHBOARD_API_URL or API_TOKEN - using static config from environment"
+            )
 
         # Initialize components
         track_resolver = TrackResolver(config)
         ffmpeg_manager = FFmpegManager(config)
-        
+
         # Start background task for control commands and status updates
         background_task = asyncio.create_task(background_task_loop())
 
@@ -237,7 +251,7 @@ async def lifespan(app: FastAPI):
     finally:
         # Shutdown
         logger.info("Shutting down metadata watcher service...")
-        
+
         # Cancel background tasks
         if background_task:
             background_task.cancel()
@@ -245,14 +259,14 @@ async def lifespan(app: FastAPI):
                 await background_task
             except asyncio.CancelledError:
                 pass
-        
+
         if config_refresh_task:
             config_refresh_task.cancel()
             try:
                 await config_refresh_task
             except asyncio.CancelledError:
                 pass
-        
+
         if ffmpeg_manager:
             await ffmpeg_manager.cleanup()
         logger.info("Service shut down complete")
@@ -288,9 +302,9 @@ async def azuracast_webhook(request: Request):
         logger.error(f"Failed to parse webhook body: {e}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid JSON payload: {str(e)}"
+            detail=f"Invalid JSON payload: {str(e)}",
         )
-    
+
     # Validate payload structure
     try:
         payload = WebhookPayload(**raw_body)
@@ -299,22 +313,23 @@ async def azuracast_webhook(request: Request):
         logger.error(f"Received payload: {raw_body}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid payload structure: {str(e)}"
+            detail=f"Invalid payload structure: {str(e)}",
         )
-    
+
     # Validate webhook secret if configured
     if config.webhook_secret:
         # Check X-Webhook-Secret header first
         provided_secret = request.headers.get("X-Webhook-Secret")
-        
+
         # If not found, check HTTP Basic Auth (AzuraCast uses this)
         if not provided_secret:
             auth_header = request.headers.get("Authorization")
             if auth_header and auth_header.startswith("Basic "):
                 # Decode Basic Auth
                 import base64
+
                 try:
-                    auth_decoded = base64.b64decode(auth_header[6:]).decode('utf-8')
+                    auth_decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
                     # Format is "username:password"
                     if ":" in auth_decoded:
                         username, password = auth_decoded.split(":", 1)
@@ -323,7 +338,7 @@ async def azuracast_webhook(request: Request):
                             provided_secret = password
                 except Exception as e:
                     logger.warning(f"Failed to decode Basic Auth: {e}")
-        
+
         # Validate secret
         if not provided_secret or provided_secret != config.webhook_secret:
             logger.warning(f"Invalid webhook authentication from {request.client.host}")
@@ -333,11 +348,8 @@ async def azuracast_webhook(request: Request):
 
     # Extract song info from now_playing
     song = payload.now_playing.song
-    
-    logger.info(
-        f"Received webhook: {song.artist} - {song.title} "
-        f"(ID: {song.id})"
-    )
+
+    logger.info(f"Received webhook: {song.artist} - {song.title} " f"(ID: {song.id})")
 
     try:
         # Resolve track to video loop
@@ -523,10 +535,10 @@ async def manual_track_switch(payload: ManualSwitchRequest, request: Request):
 @app.get("/logs/latest")
 async def get_latest_logs(request: Request):
     """Get latest FFmpeg log file content.
-    
+
     Returns:
         dict: Log file information and content.
-    
+
     Raises:
         HTTPException: If authentication fails.
     """
@@ -535,38 +547,41 @@ async def get_latest_logs(request: Request):
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
             raise HTTPException(status_code=401, detail="Unauthorized")
-        
+
         provided_token = auth_header.split(" ")[1]
         if provided_token != config.api_token:
             raise HTTPException(status_code=401, detail="Invalid token")
-    
+
     try:
         # Find latest log file
         from pathlib import Path
+
         log_dir = Path("/var/log/radio")
-        
+
         if not log_dir.exists():
             return {"logs": "Log directory does not exist", "timestamp": None}
-        
-        log_files = sorted(log_dir.glob("ffmpeg_*.log"), key=lambda x: x.stat().st_mtime, reverse=True)
-        
+
+        log_files = sorted(
+            log_dir.glob("ffmpeg_*.log"), key=lambda x: x.stat().st_mtime, reverse=True
+        )
+
         if not log_files:
             return {"logs": "No log files found", "timestamp": None}
-        
+
         latest_log = log_files[0]
-        
+
         # Read last 100 lines
         with open(latest_log, "r") as f:
             lines = f.readlines()
             last_lines = lines[-100:]  # Last 100 lines
-        
+
         return {
             "logs": "".join(last_lines),
             "log_file": str(latest_log.name),
             "timestamp": datetime.fromtimestamp(latest_log.stat().st_mtime).isoformat(),
             "size_bytes": latest_log.stat().st_size,
         }
-    
+
     except Exception as e:
         logger.error(f"Error reading logs: {e}", exc_info=True)
         return {"error": str(e), "logs": None}

@@ -129,5 +129,3 @@ class TestSecurityConfig:
         assert config.license_manifest_path == "/srv/config/license_manifest.json"
         assert config.enable_rate_limiting is True
         assert config.enable_license_tracking is True
-
-

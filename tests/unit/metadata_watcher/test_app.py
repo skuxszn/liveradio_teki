@@ -26,16 +26,18 @@ def mock_ffmpeg_manager():
     """Create a mock FFmpeg manager."""
     manager = Mock()
     manager.switch_track = AsyncMock(return_value=True)
-    manager.get_status = Mock(return_value={
-        "status": "running",
-        "process": {
-            "pid": 12345,
-            "track_key": "test - track",
-            "loop_path": "/test/loop.mp4",
-            "uptime_seconds": 100.0,
-            "started_at": "2025-11-03T12:00:00"
+    manager.get_status = Mock(
+        return_value={
+            "status": "running",
+            "process": {
+                "pid": 12345,
+                "track_key": "test - track",
+                "loop_path": "/test/loop.mp4",
+                "uptime_seconds": 100.0,
+                "started_at": "2025-11-03T12:00:00",
+            },
         }
-    })
+    )
     manager.cleanup = AsyncMock()
     return manager
 
@@ -52,9 +54,9 @@ def mock_track_resolver():
 @pytest.fixture
 def client(mock_config, mock_ffmpeg_manager, mock_track_resolver):
     """Create a test client with mocked dependencies."""
-    with patch('metadata_watcher.app.Config') as MockConfig, \
-         patch('metadata_watcher.app.FFmpegManager') as MockFFmpegManager, \
-         patch('metadata_watcher.app.TrackResolver') as MockTrackResolver:
+    with patch("metadata_watcher.app.Config") as MockConfig, patch(
+        "metadata_watcher.app.FFmpegManager"
+    ) as MockFFmpegManager, patch("metadata_watcher.app.TrackResolver") as MockTrackResolver:
 
         MockConfig.from_env.return_value = mock_config
         MockFFmpegManager.return_value = mock_ffmpeg_manager
@@ -62,9 +64,10 @@ def client(mock_config, mock_ffmpeg_manager, mock_track_resolver):
 
         # Import app after patching
         from metadata_watcher.app import app
-        
+
         # Set global instances
         import metadata_watcher.app as app_module
+
         app_module.config = mock_config
         app_module.ffmpeg_manager = mock_ffmpeg_manager
         app_module.track_resolver = mock_track_resolver
@@ -98,18 +101,13 @@ class TestWebhookEndpoint:
                 "artist": "Test Artist",
                 "title": "Test Title",
                 "album": "Test Album",
-                "duration": 180
+                "duration": 180,
             },
-            "station": {
-                "id": "1",
-                "name": "Test Station"
-            }
+            "station": {"id": "1", "name": "Test Station"},
         }
 
         response = client.post(
-            "/webhook/azuracast",
-            json=payload,
-            headers={"X-Webhook-Secret": "test-secret"}
+            "/webhook/azuracast", json=payload, headers={"X-Webhook-Secret": "test-secret"}
         )
 
         assert response.status_code == 200
@@ -120,21 +118,12 @@ class TestWebhookEndpoint:
     def test_webhook_invalid_secret(self, client):
         """Test webhook with invalid secret."""
         payload = {
-            "song": {
-                "id": "123",
-                "artist": "Test Artist",
-                "title": "Test Title"
-            },
-            "station": {
-                "id": "1",
-                "name": "Test Station"
-            }
+            "song": {"id": "123", "artist": "Test Artist", "title": "Test Title"},
+            "station": {"id": "1", "name": "Test Station"},
         }
 
         response = client.post(
-            "/webhook/azuracast",
-            json=payload,
-            headers={"X-Webhook-Secret": "wrong-secret"}
+            "/webhook/azuracast", json=payload, headers={"X-Webhook-Secret": "wrong-secret"}
         )
 
         assert response.status_code == 401
@@ -142,15 +131,8 @@ class TestWebhookEndpoint:
     def test_webhook_missing_secret(self, client):
         """Test webhook without secret header."""
         payload = {
-            "song": {
-                "id": "123",
-                "artist": "Test Artist",
-                "title": "Test Title"
-            },
-            "station": {
-                "id": "1",
-                "name": "Test Station"
-            }
+            "song": {"id": "123", "artist": "Test Artist", "title": "Test Title"},
+            "station": {"id": "1", "name": "Test Station"},
         }
 
         response = client.post("/webhook/azuracast", json=payload)
@@ -159,14 +141,10 @@ class TestWebhookEndpoint:
 
     def test_webhook_invalid_payload(self, client):
         """Test webhook with invalid payload structure."""
-        payload = {
-            "invalid": "data"
-        }
+        payload = {"invalid": "data"}
 
         response = client.post(
-            "/webhook/azuracast",
-            json=payload,
-            headers={"X-Webhook-Secret": "test-secret"}
+            "/webhook/azuracast", json=payload, headers={"X-Webhook-Secret": "test-secret"}
         )
 
         assert response.status_code == 422  # Validation error
@@ -178,16 +156,11 @@ class TestWebhookEndpoint:
                 "id": "123"
                 # Missing artist and title
             },
-            "station": {
-                "id": "1",
-                "name": "Test Station"
-            }
+            "station": {"id": "1", "name": "Test Station"},
         }
 
         response = client.post(
-            "/webhook/azuracast",
-            json=payload,
-            headers={"X-Webhook-Secret": "test-secret"}
+            "/webhook/azuracast", json=payload, headers={"X-Webhook-Secret": "test-secret"}
         )
 
         assert response.status_code == 422
@@ -198,7 +171,7 @@ class TestHealthEndpoint:
 
     def test_health_check_success(self, client):
         """Test health check when everything is healthy."""
-        with patch('metadata_watcher.app.aiohttp.ClientSession') as mock_session:
+        with patch("metadata_watcher.app.aiohttp.ClientSession") as mock_session:
             # Mock successful AzuraCast response
             mock_response = Mock()
             mock_response.status = 200
@@ -226,7 +199,7 @@ class TestHealthEndpoint:
 
     def test_health_check_azuracast_unreachable(self, client):
         """Test health check when AzuraCast is unreachable."""
-        with patch('metadata_watcher.app.aiohttp.ClientSession') as mock_session:
+        with patch("metadata_watcher.app.aiohttp.ClientSession") as mock_session:
             # Mock failed AzuraCast response
             mock_session.side_effect = Exception("Connection failed")
 
@@ -254,10 +227,7 @@ class TestStatusEndpoint:
 
     def test_status_no_process(self, client, mock_ffmpeg_manager):
         """Test status endpoint when no process is running."""
-        mock_ffmpeg_manager.get_status.return_value = {
-            "status": "stopped",
-            "process": None
-        }
+        mock_ffmpeg_manager.get_status.return_value = {"status": "stopped", "process": None}
 
         response = client.get("/status")
 
@@ -272,16 +242,10 @@ class TestManualSwitchEndpoint:
 
     def test_manual_switch_valid(self, client):
         """Test manual switch with valid token and data."""
-        payload = {
-            "artist": "Test Artist",
-            "title": "Test Title",
-            "song_id": "123"
-        }
+        payload = {"artist": "Test Artist", "title": "Test Title", "song_id": "123"}
 
         response = client.post(
-            "/manual/switch",
-            json=payload,
-            headers={"Authorization": "Bearer test-token"}
+            "/manual/switch", json=payload, headers={"Authorization": "Bearer test-token"}
         )
 
         assert response.status_code == 200
@@ -290,25 +254,17 @@ class TestManualSwitchEndpoint:
 
     def test_manual_switch_invalid_token(self, client):
         """Test manual switch with invalid token."""
-        payload = {
-            "artist": "Test Artist",
-            "title": "Test Title"
-        }
+        payload = {"artist": "Test Artist", "title": "Test Title"}
 
         response = client.post(
-            "/manual/switch",
-            json=payload,
-            headers={"Authorization": "Bearer wrong-token"}
+            "/manual/switch", json=payload, headers={"Authorization": "Bearer wrong-token"}
         )
 
         assert response.status_code == 401
 
     def test_manual_switch_missing_token(self, client):
         """Test manual switch without authorization header."""
-        payload = {
-            "artist": "Test Artist",
-            "title": "Test Title"
-        }
+        payload = {"artist": "Test Artist", "title": "Test Title"}
 
         response = client.post("/manual/switch", json=payload)
 
@@ -322,9 +278,7 @@ class TestManualSwitchEndpoint:
         }
 
         response = client.post(
-            "/manual/switch",
-            json=payload,
-            headers={"Authorization": "Bearer test-token"}
+            "/manual/switch", json=payload, headers={"Authorization": "Bearer test-token"}
         )
 
         assert response.status_code == 422
@@ -333,19 +287,10 @@ class TestManualSwitchEndpoint:
         """Test manual switch when FFmpeg switch fails."""
         mock_ffmpeg_manager.switch_track.return_value = False
 
-        payload = {
-            "artist": "Test Artist",
-            "title": "Test Title"
-        }
+        payload = {"artist": "Test Artist", "title": "Test Title"}
 
         response = client.post(
-            "/manual/switch",
-            json=payload,
-            headers={"Authorization": "Bearer test-token"}
+            "/manual/switch", json=payload, headers={"Authorization": "Bearer test-token"}
         )
 
         assert response.status_code == 500
-
-
-
-

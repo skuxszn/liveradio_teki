@@ -156,9 +156,7 @@ class RateLimiter:
             if h in self._backoff_delays:
                 del self._backoff_delays[h]
 
-    def get_stats(
-        self, notification_type: NotificationType
-    ) -> Dict[str, int]:
+    def get_stats(self, notification_type: NotificationType) -> Dict[str, int]:
         """
         Get current rate limit statistics.
 
@@ -196,4 +194,3 @@ class RateLimiter:
                 self._hour_records.clear()
                 self._last_notification.clear()
                 self._backoff_delays.clear()
-

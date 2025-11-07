@@ -71,7 +71,7 @@ jobs:
         pytest tests/unit/ -v --tb=short --junitxml=junit/test-results-unit.xml
     
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: unit-test-results
@@ -144,7 +144,7 @@ jobs:
         pytest tests/integration/ -v --tb=short -m "not requires_docker" --junitxml=junit/test-results-integration.xml
     
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: integration-test-results
@@ -215,7 +215,7 @@ jobs:
         fail_ci_if_error: false
     
     - name: Upload coverage HTML
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: coverage-report
@@ -236,8 +236,8 @@ jobs:
     - name: Build metadata-watcher image
       uses: docker/build-push-action@v4
       with:
-        context: .
-        file: metadata_watcher/Dockerfile
+        context: ./metadata_watcher
+        file: ./metadata_watcher/Dockerfile
         push: false
         tags: liveradio-metadata-watcher:test
         cache-from: type=gha
@@ -286,7 +286,7 @@ jobs:
           --html=locust_report.html
     
     - name: Upload load test report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: load-test-report
@@ -315,7 +315,7 @@ jobs:
         output: 'trivy-results.sarif'
     
     - name: Upload Trivy results to GitHub Security
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'

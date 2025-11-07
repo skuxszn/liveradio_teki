@@ -37,8 +37,10 @@ class VideoAsset(Base):
 
 # Pydantic models for API
 
+
 class VideoAssetResponse(BaseModel):
     """Video asset response model."""
+
     id: int
     filename: str
     file_path: str
@@ -62,6 +64,7 @@ class VideoAssetResponse(BaseModel):
 
 class VideoMetadata(BaseModel):
     """Video metadata from validation."""
+
     duration: float
     resolution: str
     frame_rate: float
@@ -70,4 +73,3 @@ class VideoMetadata(BaseModel):
     bitrate: int
     pixel_format: str
     file_size: int
-

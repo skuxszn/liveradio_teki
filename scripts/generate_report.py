@@ -53,11 +53,7 @@ def format_duration(hours: float) -> str:
     return f"{h}h {m}m"
 
 
-def generate_text_report(
-    analytics: Analytics,
-    start_date: datetime,
-    end_date: datetime
-) -> str:
+def generate_text_report(analytics: Analytics, start_date: datetime, end_date: datetime) -> str:
     """Generate text format report.
 
     Args:
@@ -71,18 +67,10 @@ def generate_text_report(
     # Get statistics
     stats = analytics.get_play_stats(start_date=start_date, end_date=end_date)
     most_played = analytics.get_most_played_tracks(
-        start_date=start_date,
-        end_date=end_date,
-        limit=10
+        start_date=start_date, end_date=end_date, limit=10
     )
-    error_summary = analytics.get_error_summary(
-        start_date=start_date,
-        end_date=end_date
-    )
-    uptime_by_day = analytics.get_uptime_by_day(
-        start_date=start_date,
-        end_date=end_date
-    )
+    error_summary = analytics.get_error_summary(start_date=start_date, end_date=end_date)
+    uptime_by_day = analytics.get_uptime_by_day(start_date=start_date, end_date=end_date)
 
     # Build report
     lines = []
@@ -121,7 +109,9 @@ def generate_text_report(
     if error_summary:
         lines.append("ERROR SUMMARY")
         lines.append("-" * 80)
-        lines.append(f"{'Service':<15} {'Severity':<12} {'Total':<8} {'Resolved':<10} {'Unresolved'}")
+        lines.append(
+            f"{'Service':<15} {'Severity':<12} {'Total':<8} {'Resolved':<10} {'Unresolved'}"
+        )
         lines.append("-" * 80)
         for error in error_summary:
             lines.append(
@@ -155,11 +145,7 @@ def generate_text_report(
     return "\n".join(lines)
 
 
-def generate_html_report(
-    analytics: Analytics,
-    start_date: datetime,
-    end_date: datetime
-) -> str:
+def generate_html_report(analytics: Analytics, start_date: datetime, end_date: datetime) -> str:
     """Generate HTML format report.
 
     Args:
@@ -173,24 +159,16 @@ def generate_html_report(
     # Get statistics
     stats = analytics.get_play_stats(start_date=start_date, end_date=end_date)
     most_played = analytics.get_most_played_tracks(
-        start_date=start_date,
-        end_date=end_date,
-        limit=10
+        start_date=start_date, end_date=end_date, limit=10
     )
-    error_summary = analytics.get_error_summary(
-        start_date=start_date,
-        end_date=end_date
-    )
-    uptime_by_day = analytics.get_uptime_by_day(
-        start_date=start_date,
-        end_date=end_date
-    )
+    error_summary = analytics.get_error_summary(start_date=start_date, end_date=end_date)
+    uptime_by_day = analytics.get_uptime_by_day(start_date=start_date, end_date=end_date)
 
     # Determine status color
-    if stats['uptime_percent'] >= 99:
+    if stats["uptime_percent"] >= 99:
         status_color = "#27ae60"  # Green
         status_text = "Excellent"
-    elif stats['uptime_percent'] >= 95:
+    elif stats["uptime_percent"] >= 95:
         status_color = "#f39c12"  # Orange
         status_text = "Good"
     else:
@@ -453,50 +431,34 @@ def send_discord_notification(webhook_url: str, stats: Dict[str, Any]) -> bool:
         import requests
 
         # Determine color based on uptime
-        if stats['uptime_percent'] >= 99:
-            color = 0x27ae60  # Green
-        elif stats['uptime_percent'] >= 95:
-            color = 0xf39c12  # Orange
+        if stats["uptime_percent"] >= 99:
+            color = 0x27AE60  # Green
+        elif stats["uptime_percent"] >= 95:
+            color = 0xF39C12  # Orange
         else:
-            color = 0xe74c3c  # Red
+            color = 0xE74C3C  # Red
 
         embed = {
             "title": "📊 Weekly Radio Stream Report",
             "description": f"Analytics for {stats['start_date']} to {stats['end_date']}",
             "color": color,
             "fields": [
-                {
-                    "name": "Total Plays",
-                    "value": f"{stats['total_plays']:,}",
-                    "inline": True
-                },
-                {
-                    "name": "Unique Tracks",
-                    "value": f"{stats['unique_tracks']:,}",
-                    "inline": True
-                },
+                {"name": "Total Plays", "value": f"{stats['total_plays']:,}", "inline": True},
+                {"name": "Unique Tracks", "value": f"{stats['unique_tracks']:,}", "inline": True},
                 {
                     "name": "Total Duration",
-                    "value": format_duration(stats['total_duration_hours']),
-                    "inline": True
+                    "value": format_duration(stats["total_duration_hours"]),
+                    "inline": True,
                 },
-                {
-                    "name": "Uptime",
-                    "value": f"{stats['uptime_percent']:.2f}%",
-                    "inline": True
-                },
-                {
-                    "name": "Error Rate",
-                    "value": f"{stats['error_rate']:.2f}%",
-                    "inline": True
-                },
+                {"name": "Uptime", "value": f"{stats['uptime_percent']:.2f}%", "inline": True},
+                {"name": "Error Rate", "value": f"{stats['error_rate']:.2f}%", "inline": True},
                 {
                     "name": "Avg Duration",
                     "value": f"{stats['avg_duration_seconds']:.1f}s",
-                    "inline": True
-                }
+                    "inline": True,
+                },
             ],
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         payload = {"embeds": [embed]}
@@ -513,39 +475,27 @@ def send_discord_notification(webhook_url: str, stats: Dict[str, Any]) -> bool:
 def main():
     """Main entry point for report generation."""
     parser = argparse.ArgumentParser(
-        description='Generate weekly analytics report',
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        description="Generate weekly analytics report",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser.add_argument(
-        '--days',
-        type=int,
-        default=7,
-        help='Number of days for report (default: 7)'
+        "--days", type=int, default=7, help="Number of days for report (default: 7)"
     )
     parser.add_argument(
-        '--format',
+        "--format",
         type=str,
-        choices=['text', 'html', 'both'],
-        default='both',
-        help='Output format (default: both)'
+        choices=["text", "html", "both"],
+        default="both",
+        help="Output format (default: both)",
     )
     parser.add_argument(
-        '--output-dir',
-        type=str,
-        default='./reports',
-        help='Output directory (default: ./reports)'
+        "--output-dir", type=str, default="./reports", help="Output directory (default: ./reports)"
     )
     parser.add_argument(
-        '--send-notification',
-        action='store_true',
-        help='Send report via Discord/Slack webhook'
+        "--send-notification", action="store_true", help="Send report via Discord/Slack webhook"
     )
-    parser.add_argument(
-        '--webhook-url',
-        type=str,
-        help='Custom webhook URL for notifications'
-    )
+    parser.add_argument("--webhook-url", type=str, help="Custom webhook URL for notifications")
 
     args = parser.parse_args()
 
@@ -567,41 +517,32 @@ def main():
         analytics = Analytics(config)
 
         # Generate timestamp for filenames
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Generate text report
-        if args.format in ['text', 'both']:
+        if args.format in ["text", "both"]:
             print("Generating text report...")
             text_report = generate_text_report(analytics, start_date, end_date)
-            text_file = os.path.join(
-                args.output_dir,
-                f'weekly_report_{timestamp}.txt'
-            )
-            with open(text_file, 'w', encoding='utf-8') as f:
+            text_file = os.path.join(args.output_dir, f"weekly_report_{timestamp}.txt")
+            with open(text_file, "w", encoding="utf-8") as f:
                 f.write(text_report)
             print(f"  ✓ Saved to {text_file}")
 
         # Generate HTML report
-        if args.format in ['html', 'both']:
+        if args.format in ["html", "both"]:
             print("Generating HTML report...")
             html_report = generate_html_report(analytics, start_date, end_date)
-            html_file = os.path.join(
-                args.output_dir,
-                f'weekly_report_{timestamp}.html'
-            )
-            with open(html_file, 'w', encoding='utf-8') as f:
+            html_file = os.path.join(args.output_dir, f"weekly_report_{timestamp}.html")
+            with open(html_file, "w", encoding="utf-8") as f:
                 f.write(html_report)
             print(f"  ✓ Saved to {html_file}")
 
         # Send notification if requested
         if args.send_notification:
-            webhook_url = args.webhook_url or os.getenv('DISCORD_WEBHOOK_URL')
+            webhook_url = args.webhook_url or os.getenv("DISCORD_WEBHOOK_URL")
             if webhook_url:
                 print("Sending Discord notification...")
-                stats = analytics.get_play_stats(
-                    start_date=start_date,
-                    end_date=end_date
-                )
+                stats = analytics.get_play_stats(start_date=start_date, end_date=end_date)
                 if send_discord_notification(webhook_url, stats):
                     print("  ✓ Notification sent successfully")
                 else:
@@ -620,12 +561,10 @@ def main():
     except Exception as e:
         print(f"\n✗ Error generating report: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
-
-
-

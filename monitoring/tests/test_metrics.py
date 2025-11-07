@@ -19,7 +19,7 @@ class TestMetricsExporter:
                 REGISTRY.unregister(collector)
             except Exception:
                 pass
-        
+
         return MetricsExporter()
 
     def test_initialization(self, metrics):
@@ -161,4 +161,3 @@ class TestMetricsExporter:
         assert "ffmpeg_restarts" in summary
         assert "stream_uptime_seconds" in summary
         assert summary["stream_uptime_seconds"] == 100.0
-

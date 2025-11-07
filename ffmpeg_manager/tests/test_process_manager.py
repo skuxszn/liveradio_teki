@@ -67,7 +67,9 @@ class TestFFmpegProcessManager:
         assert manager.command_builder is not None
 
     @pytest.mark.asyncio
-    async def test_start_stream_success(self, process_manager: FFmpegProcessManager, test_loop_file):
+    async def test_start_stream_success(
+        self, process_manager: FFmpegProcessManager, test_loop_file
+    ):
         """Test starting a stream successfully."""
         with patch("subprocess.Popen") as mock_popen:
             # Mock successful FFmpeg process
@@ -85,7 +87,9 @@ class TestFFmpegProcessManager:
             assert process_manager._current_process.state == ProcessState.RUNNING
 
     @pytest.mark.asyncio
-    async def test_start_stream_failure(self, process_manager: FFmpegProcessManager, test_loop_file):
+    async def test_start_stream_failure(
+        self, process_manager: FFmpegProcessManager, test_loop_file
+    ):
         """Test starting a stream that fails immediately."""
         with patch("subprocess.Popen") as mock_popen:
             # Mock failed FFmpeg process
@@ -101,7 +105,9 @@ class TestFFmpegProcessManager:
             assert process_manager._current_process.state == ProcessState.CRASHED
 
     @pytest.mark.asyncio
-    async def test_switch_track(self, process_manager: FFmpegProcessManager, test_loop_file, temp_dir):
+    async def test_switch_track(
+        self, process_manager: FFmpegProcessManager, test_loop_file, temp_dir
+    ):
         """Test switching tracks."""
         new_loop = temp_dir / "new_loop.mp4"
         new_loop.touch()
@@ -238,7 +244,9 @@ class TestFFmpegProcessManager:
         assert status["loop_path"] is None
 
     @pytest.mark.asyncio
-    async def test_get_status_with_process(self, process_manager: FFmpegProcessManager, test_loop_file):
+    async def test_get_status_with_process(
+        self, process_manager: FFmpegProcessManager, test_loop_file
+    ):
         """Test getting status with active process."""
         with patch("subprocess.Popen") as mock_popen:
             # Mock process
@@ -280,7 +288,9 @@ class TestProcessRecovery:
     """Test process recovery and auto-restart logic."""
 
     @pytest.mark.asyncio
-    async def test_max_restart_attempts(self, process_manager: FFmpegProcessManager, test_loop_file):
+    async def test_max_restart_attempts(
+        self, process_manager: FFmpegProcessManager, test_loop_file
+    ):
         """Test that max restart attempts are respected."""
         with patch("subprocess.Popen") as mock_popen:
             # Mock process that keeps crashing
@@ -303,4 +313,3 @@ class TestProcessRecovery:
             success = await process_manager._recover_process(process_info)
 
             assert success is False
-

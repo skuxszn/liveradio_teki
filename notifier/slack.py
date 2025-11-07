@@ -277,6 +277,3 @@ class SlackClient:
         except Exception as e:
             logger.error(f"Error in sync Slack send: {e}")
             return False
-
-
-

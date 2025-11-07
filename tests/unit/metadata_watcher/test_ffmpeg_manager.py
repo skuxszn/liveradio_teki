@@ -47,7 +47,7 @@ class TestFFmpegProcess:
             process=mock_process,
             track_key="test - track",
             loop_path=Path("/test/loop.mp4"),
-            started_at=datetime.now()
+            started_at=datetime.now(),
         )
 
         assert ffmpeg_process.pid == 12345
@@ -64,7 +64,7 @@ class TestFFmpegProcess:
             process=mock_process,
             track_key="test - track",
             loop_path=Path("/test/loop.mp4"),
-            started_at=datetime.now()
+            started_at=datetime.now(),
         )
 
         assert ffmpeg_process.is_running is True
@@ -79,7 +79,7 @@ class TestFFmpegProcess:
             process=mock_process,
             track_key="test - track",
             loop_path=Path("/test/loop.mp4"),
-            started_at=datetime.now()
+            started_at=datetime.now(),
         )
 
         assert ffmpeg_process.is_running is False
@@ -94,7 +94,7 @@ class TestFFmpegProcess:
             process=mock_process,
             track_key="test - track",
             loop_path=Path("/test/loop.mp4"),
-            started_at=datetime.now()
+            started_at=datetime.now(),
         )
 
         ffmpeg_process.terminate()
@@ -110,7 +110,7 @@ class TestFFmpegProcess:
             process=mock_process,
             track_key="test - track",
             loop_path=Path("/test/loop.mp4"),
-            started_at=datetime.now()
+            started_at=datetime.now(),
         )
 
         ffmpeg_process.kill()
@@ -164,7 +164,7 @@ class TestFFmpegManager:
     @pytest.mark.asyncio
     async def test_spawn_process_success(self, manager):
         """Test successful process spawning."""
-        with patch('metadata_watcher.ffmpeg_manager.subprocess.Popen') as mock_popen:
+        with patch("metadata_watcher.ffmpeg_manager.subprocess.Popen") as mock_popen:
             mock_process = Mock()
             mock_process.pid = 12345
             mock_process.poll.return_value = None  # Running
@@ -184,7 +184,7 @@ class TestFFmpegManager:
     @pytest.mark.asyncio
     async def test_spawn_process_immediate_exit(self, manager):
         """Test handling of process that exits immediately."""
-        with patch('metadata_watcher.ffmpeg_manager.subprocess.Popen') as mock_popen:
+        with patch("metadata_watcher.ffmpeg_manager.subprocess.Popen") as mock_popen:
             mock_process = Mock()
             mock_process.pid = 12345
             mock_process.poll.return_value = 1  # Already exited
@@ -255,7 +255,7 @@ class TestFFmpegManager:
             process=mock_process,
             track_key="test - track",
             loop_path=Path("/test/loop.mp4"),
-            started_at=datetime.now()
+            started_at=datetime.now(),
         )
 
         status = manager.get_status()
@@ -282,7 +282,7 @@ class TestFFmpegManager:
             process=mock_process,
             track_key="test - track",
             loop_path=Path("/test/loop.mp4"),
-            started_at=datetime.now()
+            started_at=datetime.now(),
         )
 
         await manager.cleanup()
@@ -293,7 +293,7 @@ class TestFFmpegManager:
     @pytest.mark.asyncio
     async def test_switch_track_success(self, manager):
         """Test successful track switching."""
-        with patch.object(manager, '_spawn_process') as mock_spawn:
+        with patch.object(manager, "_spawn_process") as mock_spawn:
             # Create a mock FFmpegProcess
             mock_process = Mock(spec=subprocess.Popen)
             mock_process.pid = 12345
@@ -303,7 +303,7 @@ class TestFFmpegManager:
                 process=mock_process,
                 track_key="new - track",
                 loop_path=Path("/test/new.mp4"),
-                started_at=datetime.now()
+                started_at=datetime.now(),
             )
             mock_spawn.return_value = new_ffmpeg_process
 
@@ -314,7 +314,7 @@ class TestFFmpegManager:
                 track_key="new - track",
                 artist="New Artist",
                 title="New Title",
-                loop_path=Path("/test/new.mp4")
+                loop_path=Path("/test/new.mp4"),
             )
 
             assert result is True
@@ -324,16 +324,15 @@ class TestFFmpegManager:
     @pytest.mark.asyncio
     async def test_switch_track_spawn_failure(self, manager):
         """Test track switching when spawn fails."""
-        with patch.object(manager, '_spawn_process') as mock_spawn:
+        with patch.object(manager, "_spawn_process") as mock_spawn:
             mock_spawn.return_value = None  # Spawn failed
 
             result = await manager.switch_track(
                 track_key="new - track",
                 artist="New Artist",
                 title="New Title",
-                loop_path=Path("/test/new.mp4")
+                loop_path=Path("/test/new.mp4"),
             )
 
             assert result is False
             assert manager.current_process is None
-

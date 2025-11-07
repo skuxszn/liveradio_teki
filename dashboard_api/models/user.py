@@ -48,8 +48,10 @@ class Token(Base):
 
 # Pydantic models for API
 
+
 class UserCreate(BaseModel):
     """User creation request."""
+
     username: str = Field(..., min_length=3, max_length=128)
     email: EmailStr
     password: str = Field(..., min_length=8)
@@ -59,6 +61,7 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     """User update request."""
+
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
     role: Optional[str] = Field(None, pattern="^(admin|operator|viewer)$")
@@ -67,6 +70,7 @@ class UserUpdate(BaseModel):
 
 class UserResponse(BaseModel):
     """User response model."""
+
     id: int
     username: str
     email: str
@@ -82,12 +86,14 @@ class UserResponse(BaseModel):
 
 class LoginRequest(BaseModel):
     """Login request."""
+
     username: str
     password: str
 
 
 class TokenResponse(BaseModel):
     """Token response."""
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -96,5 +102,5 @@ class TokenResponse(BaseModel):
 
 class TokenRefreshRequest(BaseModel):
     """Token refresh request."""
-    refresh_token: str
 
+    refresh_token: str

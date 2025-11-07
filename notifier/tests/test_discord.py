@@ -55,7 +55,9 @@ class TestDiscordEmbed:
     def test_set_author(self):
         """Test setting author."""
         embed = DiscordEmbed(title="Test")
-        embed.set_author("Author", url="https://example.com", icon_url="https://example.com/icon.png")
+        embed.set_author(
+            "Author", url="https://example.com", icon_url="https://example.com/icon.png"
+        )
 
         data = embed.to_dict()
         assert data["author"]["name"] == "Author"
@@ -226,6 +228,3 @@ class TestDiscordClient:
 
             call_args = mock_post.call_args
             assert call_args.kwargs["json"]["avatar_url"] == "https://example.com/avatar.png"
-
-
-

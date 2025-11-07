@@ -261,5 +261,3 @@ class VideoValidator:
             return round(fps, 2)
         except (ValueError, ZeroDivisionError):
             return 0.0
-
-

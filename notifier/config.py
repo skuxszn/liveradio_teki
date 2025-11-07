@@ -61,9 +61,7 @@ class NotificationConfig:
 
         # Quiet hours
         self.quiet_hours_enabled: bool = self._get_bool_env("QUIET_HOURS_ENABLED", False)
-        self.quiet_hours_start: time = self._parse_time(
-            os.getenv("QUIET_HOURS_START", "23:00")
-        )
+        self.quiet_hours_start: time = self._parse_time(os.getenv("QUIET_HOURS_START", "23:00"))
         self.quiet_hours_end: time = self._parse_time(os.getenv("QUIET_HOURS_END", "07:00"))
 
         # Notification type filtering
@@ -109,15 +107,11 @@ class NotificationConfig:
         """Load rate limit configurations for each notification type."""
         # Default rate limits per notification type
         defaults = {
-            NotificationType.TRACK_CHANGE: RateLimitConfig(
-                max_per_minute=1, max_per_hour=60
-            ),
+            NotificationType.TRACK_CHANGE: RateLimitConfig(max_per_minute=1, max_per_hour=60),
             NotificationType.ERROR: RateLimitConfig(max_per_minute=5, max_per_hour=100),
             NotificationType.WARNING: RateLimitConfig(max_per_minute=10, max_per_hour=200),
             NotificationType.INFO: RateLimitConfig(max_per_minute=5, max_per_hour=100),
-            NotificationType.DAILY_SUMMARY: RateLimitConfig(
-                max_per_minute=1, max_per_hour=2
-            ),
+            NotificationType.DAILY_SUMMARY: RateLimitConfig(max_per_minute=1, max_per_hour=2),
         }
 
         # Allow environment overrides
@@ -177,4 +171,3 @@ class NotificationConfig:
     def has_webhook_configured(self) -> bool:
         """Check if at least one webhook is configured."""
         return bool(self.discord_webhook_url or self.slack_webhook_url)
-

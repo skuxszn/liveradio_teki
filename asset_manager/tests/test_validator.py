@@ -167,5 +167,3 @@ def test_extract_fps(test_config: AssetConfig):
     stream_data = {"r_frame_rate": "invalid"}
     fps = validator._extract_fps(stream_data)
     assert fps == 0.0
-
-

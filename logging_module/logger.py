@@ -58,14 +58,14 @@ class RadioLogger:
         self.engine: Engine = self._create_engine()
         self._logger = self._setup_structured_logger()
         self._current_play_id: Optional[int] = None
-        
+
         self._logger.info(
             "RadioLogger initialized",
             extra={
                 "database": config.postgres_db,
                 "log_path": config.log_path,
-                "log_level": config.log_level
-            }
+                "log_level": config.log_level,
+            },
         )
 
     def _create_engine(self) -> Engine:
@@ -95,25 +95,25 @@ class RadioLogger:
         logger = logging.getLogger("radio_stream")
         logger.setLevel(getattr(logging, self.config.log_level))
         logger.handlers.clear()  # Remove any existing handlers
-        
+
         # Console handler (stdout)
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(getattr(logging, self.config.log_level))
         console_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
         console_handler.setFormatter(console_formatter)
         logger.addHandler(console_handler)
-        
+
         # Rotating file handler (JSON format)
         try:
             os.makedirs(self.config.log_path, exist_ok=True)
             log_file = os.path.join(self.config.log_path, "radio_stream.log")
-            
+
             file_handler = RotatingFileHandler(
                 log_file,
                 maxBytes=self.config.log_file_max_bytes,
-                backupCount=self.config.log_file_backup_count
+                backupCount=self.config.log_file_backup_count,
             )
             file_handler.setLevel(getattr(logging, self.config.log_level))
             file_formatter = JsonFormatter()
@@ -121,7 +121,7 @@ class RadioLogger:
             logger.addHandler(file_handler)
         except (OSError, PermissionError) as e:
             logger.warning(f"Could not create log file: {e}. Logging to console only.")
-        
+
         return logger
 
     def log_track_started(
@@ -129,7 +129,7 @@ class RadioLogger:
         track_info: Dict[str, Any],
         loop_path: str,
         ffmpeg_pid: int,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Optional[int]:
         """Log when a track starts playing.
 
@@ -157,21 +157,19 @@ class RadioLogger:
             album = track_info.get("album")
             azuracast_song_id = track_info.get("azuracast_song_id")
             expected_duration = track_info.get("duration")
-            
+
             # Normalize track key (consistent with track_mapper)
             track_key = self._normalize_track_key(artist, title)
-            
+
             # Prepare metadata
             meta = metadata or {}
-            meta.update({
-                "raw_track_info": track_info,
-                "logged_at": datetime.now().isoformat()
-            })
-            
+            meta.update({"raw_track_info": track_info, "logged_at": datetime.now().isoformat()})
+
             # Insert into database
             with self.engine.connect() as conn:
                 result = conn.execute(
-                    text("""
+                    text(
+                        """
                         INSERT INTO play_history (
                             track_key, artist, title, album, azuracast_song_id,
                             loop_file_path, started_at, expected_duration_seconds,
@@ -181,7 +179,8 @@ class RadioLogger:
                             :loop_path, :started_at, :expected_duration,
                             :ffmpeg_pid, :metadata
                         ) RETURNING id
-                    """),
+                    """
+                    ),
                     {
                         "track_key": track_key,
                         "artist": artist,
@@ -192,14 +191,14 @@ class RadioLogger:
                         "started_at": datetime.now(),
                         "expected_duration": expected_duration,
                         "ffmpeg_pid": ffmpeg_pid,
-                        "metadata": json.dumps(meta)
-                    }
+                        "metadata": json.dumps(meta),
+                    },
                 )
                 conn.commit()
                 play_id = result.fetchone()[0]
-            
+
             self._current_play_id = play_id
-            
+
             self._logger.info(
                 "Track started",
                 extra={
@@ -210,22 +209,22 @@ class RadioLogger:
                     "title": title,
                     "album": album,
                     "loop_path": loop_path,
-                    "ffmpeg_pid": ffmpeg_pid
-                }
+                    "ffmpeg_pid": ffmpeg_pid,
+                },
             )
-            
+
             return play_id
-        
+
         except SQLAlchemyError as e:
             self._logger.error(
                 f"Database error logging track start: {e}",
-                extra={"event": "track_start_error", "error": str(e)}
+                extra={"event": "track_start_error", "error": str(e)},
             )
             return None
         except Exception as e:
             self._logger.error(
                 f"Unexpected error logging track start: {e}",
-                extra={"event": "track_start_error", "error": str(e)}
+                extra={"event": "track_start_error", "error": str(e)},
             )
             return None
 
@@ -234,7 +233,7 @@ class RadioLogger:
         play_id: Optional[int] = None,
         had_errors: bool = False,
         error_message: Optional[str] = None,
-        error_count: int = 0
+        error_count: int = 0,
     ) -> bool:
         """Log when a track ends playing.
 
@@ -252,57 +251,59 @@ class RadioLogger:
         """
         if play_id is None:
             play_id = self._current_play_id
-        
+
         if play_id is None:
             self._logger.warning("Cannot end track: no play_id available")
             return False
-        
+
         try:
             with self.engine.connect() as conn:
                 conn.execute(
-                    text("""
+                    text(
+                        """
                         UPDATE play_history
                         SET ended_at = :ended_at,
                             had_errors = :had_errors,
                             error_message = :error_message,
                             error_count = :error_count
                         WHERE id = :play_id
-                    """),
+                    """
+                    ),
                     {
                         "play_id": play_id,
                         "ended_at": datetime.now(),
                         "had_errors": had_errors,
                         "error_message": error_message,
-                        "error_count": error_count
-                    }
+                        "error_count": error_count,
+                    },
                 )
                 conn.commit()
-            
+
             self._logger.info(
                 "Track ended",
                 extra={
                     "event": "track_ended",
                     "play_id": play_id,
                     "had_errors": had_errors,
-                    "error_count": error_count
-                }
+                    "error_count": error_count,
+                },
             )
-            
+
             if self._current_play_id == play_id:
                 self._current_play_id = None
-            
+
             return True
-        
+
         except SQLAlchemyError as e:
             self._logger.error(
                 f"Database error logging track end: {e}",
-                extra={"event": "track_end_error", "error": str(e), "play_id": play_id}
+                extra={"event": "track_end_error", "error": str(e), "play_id": play_id},
             )
             return False
         except Exception as e:
             self._logger.error(
                 f"Unexpected error logging track end: {e}",
-                extra={"event": "track_end_error", "error": str(e), "play_id": play_id}
+                extra={"event": "track_end_error", "error": str(e), "play_id": play_id},
             )
             return False
 
@@ -313,7 +314,7 @@ class RadioLogger:
         message: str,
         context: Optional[Dict[str, Any]] = None,
         stack_trace: Optional[str] = None,
-        play_history_id: Optional[int] = None
+        play_history_id: Optional[int] = None,
     ) -> Optional[int]:
         """Log an error to the database and log file.
 
@@ -341,11 +342,12 @@ class RadioLogger:
             valid_severities = ["info", "warning", "error", "critical"]
             if severity.lower() not in valid_severities:
                 severity = "error"
-            
+
             # Insert into database
             with self.engine.connect() as conn:
                 result = conn.execute(
-                    text("""
+                    text(
+                        """
                         INSERT INTO error_log (
                             timestamp, service, severity, message,
                             context, stack_trace, play_history_id
@@ -353,7 +355,8 @@ class RadioLogger:
                             :timestamp, :service, :severity, :message,
                             :context, :stack_trace, :play_history_id
                         ) RETURNING id
-                    """),
+                    """
+                    ),
                     {
                         "timestamp": datetime.now(),
                         "service": service,
@@ -361,12 +364,12 @@ class RadioLogger:
                         "message": message,
                         "context": json.dumps(context) if context else None,
                         "stack_trace": stack_trace,
-                        "play_history_id": play_history_id or self._current_play_id
-                    }
+                        "play_history_id": play_history_id or self._current_play_id,
+                    },
                 )
                 conn.commit()
                 error_id = result.fetchone()[0]
-            
+
             # Also log to structured logger
             log_level = getattr(logging, severity.upper(), logging.ERROR)
             self._logger.log(
@@ -377,22 +380,22 @@ class RadioLogger:
                     "error_id": error_id,
                     "service": service,
                     "severity": severity,
-                    "context": context
-                }
+                    "context": context,
+                },
             )
-            
+
             return error_id
-        
+
         except SQLAlchemyError as e:
             self._logger.error(
                 f"Database error logging error: {e}",
-                extra={"event": "log_error_error", "error": str(e)}
+                extra={"event": "log_error_error", "error": str(e)},
             )
             return None
         except Exception as e:
             self._logger.error(
                 f"Unexpected error logging error: {e}",
-                extra={"event": "log_error_error", "error": str(e)}
+                extra={"event": "log_error_error", "error": str(e)},
             )
             return None
 
@@ -402,7 +405,7 @@ class RadioLogger:
         metric_value: float,
         unit: Optional[str] = None,
         service: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> bool:
         """Log a system metric to the database.
 
@@ -422,7 +425,8 @@ class RadioLogger:
         try:
             with self.engine.connect() as conn:
                 conn.execute(
-                    text("""
+                    text(
+                        """
                         INSERT INTO system_metrics (
                             timestamp, metric_name, metric_value,
                             unit, service, metadata
@@ -430,30 +434,31 @@ class RadioLogger:
                             :timestamp, :metric_name, :metric_value,
                             :unit, :service, :metadata
                         )
-                    """),
+                    """
+                    ),
                     {
                         "timestamp": datetime.now(),
                         "metric_name": metric_name,
                         "metric_value": metric_value,
                         "unit": unit,
                         "service": service,
-                        "metadata": json.dumps(metadata) if metadata else None
-                    }
+                        "metadata": json.dumps(metadata) if metadata else None,
+                    },
                 )
                 conn.commit()
-            
+
             return True
-        
+
         except SQLAlchemyError as e:
             self._logger.error(
                 f"Database error logging metric: {e}",
-                extra={"event": "metric_error", "error": str(e)}
+                extra={"event": "metric_error", "error": str(e)},
             )
             return False
         except Exception as e:
             self._logger.error(
                 f"Unexpected error logging metric: {e}",
-                extra={"event": "metric_error", "error": str(e)}
+                extra={"event": "metric_error", "error": str(e)},
             )
             return False
 
@@ -474,7 +479,8 @@ class RadioLogger:
         try:
             with self.engine.connect() as conn:
                 result = conn.execute(
-                    text("""
+                    text(
+                        """
                         SELECT
                             id, track_key, artist, title, album,
                             azuracast_song_id, loop_file_path,
@@ -484,32 +490,35 @@ class RadioLogger:
                         FROM play_history
                         ORDER BY started_at DESC
                         LIMIT :limit
-                    """),
-                    {"limit": limit}
+                    """
+                    ),
+                    {"limit": limit},
                 )
-                
+
                 plays = []
                 for row in result:
-                    plays.append({
-                        "id": row[0],
-                        "track_key": row[1],
-                        "artist": row[2],
-                        "title": row[3],
-                        "album": row[4],
-                        "azuracast_song_id": row[5],
-                        "loop_file_path": row[6],
-                        "started_at": row[7].isoformat() if row[7] else None,
-                        "ended_at": row[8].isoformat() if row[8] else None,
-                        "duration_seconds": row[9],
-                        "expected_duration_seconds": row[10],
-                        "ffmpeg_pid": row[11],
-                        "had_errors": row[12],
-                        "error_message": row[13],
-                        "error_count": row[14]
-                    })
-                
+                    plays.append(
+                        {
+                            "id": row[0],
+                            "track_key": row[1],
+                            "artist": row[2],
+                            "title": row[3],
+                            "album": row[4],
+                            "azuracast_song_id": row[5],
+                            "loop_file_path": row[6],
+                            "started_at": row[7].isoformat() if row[7] else None,
+                            "ended_at": row[8].isoformat() if row[8] else None,
+                            "duration_seconds": row[9],
+                            "expected_duration_seconds": row[10],
+                            "ffmpeg_pid": row[11],
+                            "had_errors": row[12],
+                            "error_message": row[13],
+                            "error_count": row[14],
+                        }
+                    )
+
                 return plays
-        
+
         except SQLAlchemyError as e:
             self._logger.error(f"Database error getting recent plays: {e}")
             return []
@@ -531,12 +540,14 @@ class RadioLogger:
         try:
             with self.engine.connect() as conn:
                 result = conn.execute(
-                    text("""
+                    text(
+                        """
                         SELECT * FROM current_playing
-                    """)
+                    """
+                    )
                 )
                 row = result.fetchone()
-                
+
                 if row:
                     return {
                         "id": row[0],
@@ -547,11 +558,11 @@ class RadioLogger:
                         "loop_file_path": row[5],
                         "started_at": row[6].isoformat() if row[6] else None,
                         "ffmpeg_pid": row[7],
-                        "elapsed_seconds": row[8]
+                        "elapsed_seconds": row[8],
                     }
-                
+
                 return None
-        
+
         except SQLAlchemyError as e:
             self._logger.error(f"Database error getting current playing: {e}")
             return None
@@ -571,35 +582,35 @@ class RadioLogger:
         """
         try:
             deleted = {"play_history": 0, "error_log": 0}
-            
+
             with self.engine.connect() as conn:
                 # Clean old play history
                 result = conn.execute(
                     text("SELECT archive_old_play_history(:days)"),
-                    {"days": self.config.play_history_retention_days}
+                    {"days": self.config.play_history_retention_days},
                 )
                 deleted["play_history"] = result.fetchone()[0]
-                
+
                 # Clean resolved errors
                 result = conn.execute(
                     text("SELECT clean_resolved_errors(:days)"),
-                    {"days": self.config.error_log_retention_days}
+                    {"days": self.config.error_log_retention_days},
                 )
                 deleted["error_log"] = result.fetchone()[0]
-                
+
                 conn.commit()
-            
+
             self._logger.info(
                 "Old data cleaned",
                 extra={
                     "event": "cleanup",
                     "play_history_deleted": deleted["play_history"],
-                    "error_log_deleted": deleted["error_log"]
-                }
+                    "error_log_deleted": deleted["error_log"],
+                },
             )
-            
+
             return deleted
-        
+
         except SQLAlchemyError as e:
             self._logger.error(f"Database error cleaning old data: {e}")
             return {"play_history": 0, "error_log": 0}
@@ -666,27 +677,40 @@ class JsonFormatter(logging.Formatter):
             "logger": record.name,
             "message": record.getMessage(),
         }
-        
+
         # Add extra fields
         if hasattr(record, "event"):
             log_data["event"] = record.event
-        
+
         # Add all custom extra fields
         for key, value in record.__dict__.items():
             if key not in [
-                "name", "msg", "args", "created", "filename", "funcName",
-                "levelname", "levelno", "lineno", "module", "msecs",
-                "message", "pathname", "process", "processName",
-                "relativeCreated", "thread", "threadName", "exc_info",
-                "exc_text", "stack_info"
+                "name",
+                "msg",
+                "args",
+                "created",
+                "filename",
+                "funcName",
+                "levelname",
+                "levelno",
+                "lineno",
+                "module",
+                "msecs",
+                "message",
+                "pathname",
+                "process",
+                "processName",
+                "relativeCreated",
+                "thread",
+                "threadName",
+                "exc_info",
+                "exc_text",
+                "stack_info",
             ]:
                 log_data[key] = value
-        
+
         # Add exception info if present
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)
-        
+
         return json.dumps(log_data)
-
-
-

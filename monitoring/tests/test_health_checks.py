@@ -109,9 +109,7 @@ class TestHealthChecker:
             "uptime_seconds": 300,
         }
 
-        with patch.object(
-            health_checker, "check_azuracast", new_callable=AsyncMock
-        ) as mock_check:
+        with patch.object(health_checker, "check_azuracast", new_callable=AsyncMock) as mock_check:
             mock_result = MagicMock()
             mock_result.status = HealthStatus.HEALTHY
             mock_result.message = "AzuraCast reachable"
@@ -133,9 +131,7 @@ class TestHealthChecker:
             "uptime_seconds": 300,
         }
 
-        with patch.object(
-            health_checker, "check_azuracast", new_callable=AsyncMock
-        ) as mock_check:
+        with patch.object(health_checker, "check_azuracast", new_callable=AsyncMock) as mock_check:
             mock_result = MagicMock()
             mock_result.status = HealthStatus.UNHEALTHY
             mock_result.message = "AzuraCast unreachable"
@@ -155,9 +151,7 @@ class TestHealthChecker:
             "uptime_seconds": 0,
         }
 
-        with patch.object(
-            health_checker, "check_azuracast", new_callable=AsyncMock
-        ) as mock_check:
+        with patch.object(health_checker, "check_azuracast", new_callable=AsyncMock) as mock_check:
             mock_result = MagicMock()
             mock_result.status = HealthStatus.UNHEALTHY
             mock_result.message = "AzuraCast unreachable"
@@ -184,4 +178,3 @@ class TestHealthChecker:
         assert health_dict["message"] == "Test message"
         assert "timestamp" in health_dict
         assert health_dict["details"]["test"] == "data"
-

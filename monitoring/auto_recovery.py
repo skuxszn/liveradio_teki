@@ -50,6 +50,7 @@ class AutoRecovery:
         """
         if config is None:
             from monitoring.config import get_config
+
             config = get_config()
 
         self.config = config
@@ -65,9 +66,7 @@ class AutoRecovery:
         self._restart_callback: Optional[Callable] = None
         self._alert_callback: Optional[Callable] = None
 
-        logger.info(
-            f"Auto-recovery initialized (enabled: {self.config.enable_auto_recovery})"
-        )
+        logger.info(f"Auto-recovery initialized (enabled: {self.config.enable_auto_recovery})")
 
     def set_restart_callback(self, callback: Callable) -> None:
         """Set callback for FFmpeg restart.
@@ -114,9 +113,7 @@ class AutoRecovery:
 
         # Check restart limit
         if self._restart_count >= self.config.max_restart_attempts:
-            logger.error(
-                f"Max restart attempts ({self.config.max_restart_attempts}) reached"
-            )
+            logger.error(f"Max restart attempts ({self.config.max_restart_attempts}) reached")
 
             # Send critical alert
             await self._send_alert(
@@ -198,8 +195,7 @@ class AutoRecovery:
         # Check retry limit
         if self._audio_retry_count >= self.config.audio_stream_max_retries:
             logger.error(
-                f"Max audio stream retries ({self.config.audio_stream_max_retries}) "
-                f"reached"
+                f"Max audio stream retries ({self.config.audio_stream_max_retries}) " f"reached"
             )
 
             # Send critical alert
@@ -277,18 +273,14 @@ class AutoRecovery:
     def reset_restart_counter(self) -> None:
         """Reset restart counter (call on successful recovery)."""
         if self._restart_count > 0:
-            logger.info(
-                f"Resetting restart counter (was {self._restart_count})"
-            )
+            logger.info(f"Resetting restart counter (was {self._restart_count})")
         self._restart_count = 0
         self._last_restart_time = None
 
     def reset_audio_retry_counter(self) -> None:
         """Reset audio retry counter (call when audio stream recovers)."""
         if self._audio_retry_count > 0:
-            logger.info(
-                f"Audio stream recovered after {self._audio_retry_count} retries"
-            )
+            logger.info(f"Audio stream recovered after {self._audio_retry_count} retries")
         self._audio_retry_count = 0
         self._last_audio_retry_time = None
 
@@ -315,9 +307,7 @@ class AutoRecovery:
         """
         # Get recent attempts (last hour)
         one_hour_ago = datetime.now() - timedelta(hours=1)
-        recent_attempts = [
-            a for a in self._recovery_history if a.timestamp > one_hour_ago
-        ]
+        recent_attempts = [a for a in self._recovery_history if a.timestamp > one_hour_ago]
 
         return {
             "restart_count": self._restart_count,
@@ -326,9 +316,7 @@ class AutoRecovery:
             ),
             "audio_retry_count": self._audio_retry_count,
             "last_audio_retry_time": (
-                self._last_audio_retry_time.isoformat()
-                if self._last_audio_retry_time
-                else None
+                self._last_audio_retry_time.isoformat() if self._last_audio_retry_time else None
             ),
             "recent_attempts": len(recent_attempts),
             "total_attempts": len(self._recovery_history),
@@ -355,6 +343,3 @@ class AutoRecovery:
             }
             for attempt in reversed(recent)
         ]
-
-
-

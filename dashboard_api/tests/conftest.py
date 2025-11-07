@@ -13,9 +13,7 @@ from dashboard_api.utils.crypto import hash_password
 # Use in-memory SQLite for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -34,17 +32,18 @@ def db_session():
 @pytest.fixture(scope="function")
 def client(db_session):
     """Create a test client with database override."""
+
     def override_get_db():
         try:
             yield db_session
         finally:
             pass
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     with TestClient(app) as test_client:
         yield test_client
-    
+
     app.dependency_overrides.clear()
 
 
@@ -57,7 +56,7 @@ def test_user(db_session):
         password_hash=hash_password("testpass123"),
         full_name="Test User",
         role="admin",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
@@ -69,11 +68,8 @@ def test_user(db_session):
 def auth_headers(client, test_user):
     """Get authentication headers for test user."""
     response = client.post(
-        "/api/v1/auth/login",
-        json={"username": "testuser", "password": "testpass123"}
+        "/api/v1/auth/login", json={"username": "testuser", "password": "testpass123"}
     )
     assert response.status_code == 200
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
-
-

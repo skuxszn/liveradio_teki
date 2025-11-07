@@ -57,6 +57,7 @@ class FFmpegMonitor:
         """
         if config is None:
             from monitoring.config import get_config
+
             config = get_config()
 
         self.config = config
@@ -200,9 +201,7 @@ class FFmpegMonitor:
         # No new frames - check timeout
         time_since_last_frame = (now - self._last_frame_time).total_seconds()
         if time_since_last_frame > self.config.stream_freeze_timeout:
-            logger.warning(
-                f"Stream appears frozen: no new frames for {time_since_last_frame:.1f}s"
-            )
+            logger.warning(f"Stream appears frozen: no new frames for {time_since_last_frame:.1f}s")
             return True
 
         return False
@@ -225,9 +224,7 @@ class FFmpegMonitor:
 
         # Calculate percentage drop
         if self._last_bitrate > 0:
-            drop_percent = (
-                (self._last_bitrate - current_bitrate_kbps) / self._last_bitrate * 100
-            )
+            drop_percent = (self._last_bitrate - current_bitrate_kbps) / self._last_bitrate * 100
 
             if drop_percent > self.config.bitrate_drop_threshold_percent:
                 logger.warning(
@@ -267,6 +264,3 @@ class FFmpegMonitor:
         self._last_frame_time = None
         self._last_bitrate = 0.0
         logger.debug("FFmpeg monitor tracking reset")
-
-
-

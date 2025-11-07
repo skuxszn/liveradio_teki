@@ -50,6 +50,7 @@ class HealthChecker:
         """
         if config is None:
             from monitoring.config import get_config
+
             config = get_config()
 
         self.config = config
@@ -223,6 +224,3 @@ class HealthChecker:
             "timestamp": result.timestamp.isoformat(),
             "details": result.details or {},
         }
-
-
-

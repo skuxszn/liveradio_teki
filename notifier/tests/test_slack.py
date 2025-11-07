@@ -249,6 +249,3 @@ class TestSlackClient:
             call_args = mock_post.call_args
             attachments = call_args.kwargs["json"]["attachments"]
             assert attachments[0]["thumb_url"] == "https://example.com/thumb.png"
-
-
-

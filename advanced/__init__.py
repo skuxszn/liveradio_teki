@@ -14,7 +14,7 @@ Main Components:
 Usage:
     >>> from advanced import DualInputFFmpegManager
     >>> from advanced.config import AdvancedConfig
-    >>> 
+    >>>
     >>> config = AdvancedConfig.from_env()
     >>> manager = DualInputFFmpegManager(config)
     >>> await manager.start_stream("/path/to/first/loop.mp4")
@@ -37,6 +37,3 @@ __all__ = [
     "FilterGraphBuilder",
     "InputSwitcher",
 ]
-
-
-

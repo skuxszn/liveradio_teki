@@ -27,10 +27,13 @@ class TrackResolver:
         self.config = config
         self.loops_path = config.loops_path
         self.default_loop = config.default_loop
-        
+
         # Initialize database connection for track mappings
         try:
-            db_url = os.getenv("DATABASE_URL", f"postgresql://{config.postgres_user}:{config.postgres_password}@{config.postgres_host}:{config.postgres_port}/{config.postgres_db}")
+            db_url = os.getenv(
+                "DATABASE_URL",
+                f"postgresql://{config.postgres_user}:{config.postgres_password}@{config.postgres_host}:{config.postgres_port}/{config.postgres_db}",
+            )
             engine = create_engine(db_url)
             SessionLocal = sessionmaker(bind=engine)
             self.db_session = SessionLocal()
@@ -129,11 +132,14 @@ class TrackResolver:
         if self.db_session:
             try:
                 from sqlalchemy import text
+
                 result = self.db_session.execute(
-                    text("SELECT loop_file_path FROM track_mappings WHERE track_key = :key AND is_active = true"),
-                    {"key": track_key}
+                    text(
+                        "SELECT loop_file_path FROM track_mappings WHERE track_key = :key AND is_active = true"
+                    ),
+                    {"key": track_key},
                 ).first()
-                
+
                 if result:
                     loop_file_path = result[0]
                     loop_path = Path(loop_file_path)
@@ -141,10 +147,12 @@ class TrackResolver:
                     if self._is_valid_loop(loop_path):
                         return loop_path
                     else:
-                        logger.warning(f"Database mapping exists but file not found: {loop_file_path}")
+                        logger.warning(
+                            f"Database mapping exists but file not found: {loop_file_path}"
+                        )
             except Exception as e:
                 logger.error(f"Database lookup failed for {track_key}: {e}")
-        
+
         # Fallback: Try filesystem-based lookup
         # Convert track key to filename-safe format
         filename = track_key.replace(" ", "_") + ".mp4"
@@ -228,4 +236,3 @@ class TrackResolver:
         if not self._is_valid_loop(self.default_loop):
             raise FileNotFoundError(f"Default loop file not found or invalid: {self.default_loop}")
         return self.default_loop
-

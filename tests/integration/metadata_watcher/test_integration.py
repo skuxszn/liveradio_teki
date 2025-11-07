@@ -102,7 +102,7 @@ class TestFFmpegManagerIntegration:
     @pytest.mark.asyncio
     async def test_spawn_process_lifecycle(self, ffmpeg_manager, test_config):
         """Test spawning and managing a process."""
-        with patch('metadata_watcher.ffmpeg_manager.subprocess.Popen') as mock_popen:
+        with patch("metadata_watcher.ffmpeg_manager.subprocess.Popen") as mock_popen:
             # Mock a successful FFmpeg process
             mock_process = Mock()
             mock_process.pid = 12345
@@ -119,7 +119,7 @@ class TestFFmpegManagerIntegration:
                 track_key="test artist - test song",
                 artist="Test Artist",
                 title="Test Song",
-                loop_path=loop_path
+                loop_path=loop_path,
             )
 
             assert success is True
@@ -134,7 +134,7 @@ class TestFFmpegManagerIntegration:
     @pytest.mark.asyncio
     async def test_track_switching_with_overlap(self, ffmpeg_manager, test_config):
         """Test switching between tracks with overlap."""
-        with patch('metadata_watcher.ffmpeg_manager.subprocess.Popen') as mock_popen:
+        with patch("metadata_watcher.ffmpeg_manager.subprocess.Popen") as mock_popen:
             # Create two mock processes
             mock_process1 = Mock()
             mock_process1.pid = 11111
@@ -157,20 +157,14 @@ class TestFFmpegManagerIntegration:
             # Switch to first track
             loop_path = test_config.loops_path / "tracks" / "test_artist_-_test_song.mp4"
             success1 = await ffmpeg_manager.switch_track(
-                track_key="track 1",
-                artist="Artist 1",
-                title="Song 1",
-                loop_path=loop_path
+                track_key="track 1", artist="Artist 1", title="Song 1", loop_path=loop_path
             )
             assert success1 is True
             assert ffmpeg_manager.current_process.pid == 11111
 
             # Switch to second track (should terminate first)
             success2 = await ffmpeg_manager.switch_track(
-                track_key="track 2",
-                artist="Artist 2",
-                title="Song 2",
-                loop_path=loop_path
+                track_key="track 2", artist="Artist 2", title="Song 2", loop_path=loop_path
             )
             assert success2 is True
             assert ffmpeg_manager.current_process.pid == 22222
@@ -181,7 +175,7 @@ class TestFFmpegManagerIntegration:
     @pytest.mark.asyncio
     async def test_cleanup(self, ffmpeg_manager, test_config):
         """Test cleanup terminates active processes."""
-        with patch('metadata_watcher.ffmpeg_manager.subprocess.Popen') as mock_popen:
+        with patch("metadata_watcher.ffmpeg_manager.subprocess.Popen") as mock_popen:
             mock_process = Mock()
             mock_process.pid = 12345
             mock_process.poll.return_value = None
@@ -194,10 +188,7 @@ class TestFFmpegManagerIntegration:
             # Spawn a process
             loop_path = test_config.loops_path / "tracks" / "test_artist_-_test_song.mp4"
             await ffmpeg_manager.switch_track(
-                track_key="test track",
-                artist="Test",
-                title="Track",
-                loop_path=loop_path
+                track_key="test track", artist="Test", title="Track", loop_path=loop_path
             )
 
             # Cleanup
@@ -215,7 +206,7 @@ class TestEndToEndWorkflow:
         self, test_config, track_resolver, ffmpeg_manager
     ):
         """Test complete workflow from track resolution to FFmpeg spawn."""
-        with patch('metadata_watcher.ffmpeg_manager.subprocess.Popen') as mock_popen:
+        with patch("metadata_watcher.ffmpeg_manager.subprocess.Popen") as mock_popen:
             mock_process = Mock()
             mock_process.pid = 12345
             mock_process.poll.return_value = None
@@ -235,10 +226,7 @@ class TestEndToEndWorkflow:
 
             # Step 3: Switch FFmpeg process
             success = await ffmpeg_manager.switch_track(
-                track_key=track_key,
-                artist="Test Artist",
-                title="Test Song",
-                loop_path=loop_path
+                track_key=track_key, artist="Test Artist", title="Test Song", loop_path=loop_path
             )
             assert success is True
 
@@ -252,11 +240,9 @@ class TestEndToEndWorkflow:
             mock_process.terminate.assert_called()
 
     @pytest.mark.asyncio
-    async def test_multiple_track_changes(
-        self, test_config, track_resolver, ffmpeg_manager
-    ):
+    async def test_multiple_track_changes(self, test_config, track_resolver, ffmpeg_manager):
         """Test multiple consecutive track changes."""
-        with patch('metadata_watcher.ffmpeg_manager.subprocess.Popen') as mock_popen:
+        with patch("metadata_watcher.ffmpeg_manager.subprocess.Popen") as mock_popen:
             # Create multiple mock processes
             processes = []
             for i in range(3):
@@ -282,10 +268,7 @@ class TestEndToEndWorkflow:
                 track_key = track_resolver._normalize_track_key(artist, title)
 
                 success = await ffmpeg_manager.switch_track(
-                    track_key=track_key,
-                    artist=artist,
-                    title=title,
-                    loop_path=loop_path
+                    track_key=track_key, artist=artist, title=title, loop_path=loop_path
                 )
 
                 assert success is True
@@ -315,7 +298,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_restart_cooldown(self, ffmpeg_manager, test_config):
         """Test restart cooldown mechanism."""
-        with patch('metadata_watcher.ffmpeg_manager.subprocess.Popen') as mock_popen:
+        with patch("metadata_watcher.ffmpeg_manager.subprocess.Popen") as mock_popen:
             mock_process = Mock()
             mock_process.pid = 12345
             mock_process.poll.return_value = None
@@ -333,7 +316,3 @@ class TestErrorHandling:
             # Immediate second spawn should be blocked by cooldown
             result2 = await ffmpeg_manager._spawn_process(track_key, loop_path, ["test"])
             assert result2 is None
-
-
-
-

@@ -300,11 +300,7 @@ class FFmpegLogParser:
         Returns:
             List of critical errors
         """
-        return [
-            err
-            for err in self.errors
-            if err.level in (LogLevel.FATAL, LogLevel.PANIC)
-        ]
+        return [err for err in self.errors if err.level in (LogLevel.FATAL, LogLevel.PANIC)]
 
     def get_recent_errors(self, count: int = 10) -> List[FFmpegError]:
         """
@@ -375,9 +371,9 @@ class FFmpegLogParser:
             "time": self.metrics.time,
             "dup_frames": self.metrics.dup_frames,
             "drop_frames": self.metrics.drop_frames,
-            "last_update": self.metrics.last_update.isoformat()
-            if self.metrics.last_update
-            else None,
+            "last_update": (
+                self.metrics.last_update.isoformat() if self.metrics.last_update else None
+            ),
             "total_errors": len(self.errors),
             "total_warnings": len(self.warnings),
             "is_healthy": self.is_stream_healthy(),
@@ -390,6 +386,3 @@ class FFmpegLogParser:
         self.warnings = []
         self._seen_errors = set()
         logger.debug("Log parser state reset")
-
-
-

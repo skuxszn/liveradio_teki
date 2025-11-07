@@ -40,19 +40,19 @@ class LoggingConfig:
     postgres_user: str = "radio"
     postgres_password: str = "radio"
     postgres_db: str = "radio_db"
-    
+
     log_level: str = "INFO"
     log_path: str = "/var/log/radio"
     log_file_max_bytes: int = 100 * 1024 * 1024  # 100 MB
     log_file_backup_count: int = 10
-    
+
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_pool_timeout: int = 30
     db_pool_recycle: int = 3600
-    
+
     debug: bool = False
-    
+
     play_history_retention_days: int = 90
     error_log_retention_days: int = 30
     metrics_retention_days: int = 30
@@ -103,18 +103,14 @@ class LoggingConfig:
             postgres_db=os.getenv("POSTGRES_DB", "radio_db"),
             log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
             log_path=os.getenv("LOG_PATH", "/var/log/radio"),
-            log_file_max_bytes=int(
-                os.getenv("LOG_FILE_MAX_BYTES", str(100 * 1024 * 1024))
-            ),
+            log_file_max_bytes=int(os.getenv("LOG_FILE_MAX_BYTES", str(100 * 1024 * 1024))),
             log_file_backup_count=int(os.getenv("LOG_FILE_BACKUP_COUNT", "10")),
             db_pool_size=int(os.getenv("DB_POOL_SIZE", "5")),
             db_max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "10")),
             db_pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", "30")),
             db_pool_recycle=int(os.getenv("DB_POOL_RECYCLE", "3600")),
             debug=os.getenv("DEBUG", "false").lower() == "true",
-            play_history_retention_days=int(
-                os.getenv("PLAY_HISTORY_RETENTION_DAYS", "90")
-            ),
+            play_history_retention_days=int(os.getenv("PLAY_HISTORY_RETENTION_DAYS", "90")),
             error_log_retention_days=int(os.getenv("ERROR_LOG_RETENTION_DAYS", "30")),
             metrics_retention_days=int(os.getenv("METRICS_RETENTION_DAYS", "30")),
         )
@@ -127,60 +123,53 @@ class LoggingConfig:
         """
         if not self.postgres_host:
             raise ValueError("postgres_host cannot be empty")
-        
+
         if not (1 <= self.postgres_port <= 65535):
             raise ValueError(f"Invalid postgres_port: {self.postgres_port}")
-        
+
         if not self.postgres_user:
             raise ValueError("postgres_user cannot be empty")
-        
+
         if not self.postgres_password:
             raise ValueError("postgres_password cannot be empty")
-        
+
         if not self.postgres_db:
             raise ValueError("postgres_db cannot be empty")
-        
+
         valid_log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if self.log_level not in valid_log_levels:
             raise ValueError(
                 f"Invalid log_level: {self.log_level}. Must be one of {valid_log_levels}"
             )
-        
+
         if self.db_pool_size < 1:
             raise ValueError(f"db_pool_size must be >= 1, got {self.db_pool_size}")
-        
+
         if self.db_max_overflow < 0:
-            raise ValueError(
-                f"db_max_overflow must be >= 0, got {self.db_max_overflow}"
-            )
-        
+            raise ValueError(f"db_max_overflow must be >= 0, got {self.db_max_overflow}")
+
         if self.db_pool_timeout < 1:
-            raise ValueError(
-                f"db_pool_timeout must be >= 1, got {self.db_pool_timeout}"
-            )
-        
+            raise ValueError(f"db_pool_timeout must be >= 1, got {self.db_pool_timeout}")
+
         if self.log_file_max_bytes < 1024:  # At least 1 KB
-            raise ValueError(
-                f"log_file_max_bytes must be >= 1024, got {self.log_file_max_bytes}"
-            )
-        
+            raise ValueError(f"log_file_max_bytes must be >= 1024, got {self.log_file_max_bytes}")
+
         if self.log_file_backup_count < 1:
             raise ValueError(
                 f"log_file_backup_count must be >= 1, got {self.log_file_backup_count}"
             )
-        
+
         if self.play_history_retention_days < 1:
             raise ValueError(
                 f"play_history_retention_days must be >= 1, "
                 f"got {self.play_history_retention_days}"
             )
-        
+
         if self.error_log_retention_days < 1:
             raise ValueError(
-                f"error_log_retention_days must be >= 1, "
-                f"got {self.error_log_retention_days}"
+                f"error_log_retention_days must be >= 1, " f"got {self.error_log_retention_days}"
             )
-        
+
         if self.metrics_retention_days < 1:
             raise ValueError(
                 f"metrics_retention_days must be >= 1, got {self.metrics_retention_days}"
@@ -202,6 +191,3 @@ class LoggingConfig:
             f"log_level='{self.log_level}', "
             f"debug={self.debug})"
         )
-
-
-

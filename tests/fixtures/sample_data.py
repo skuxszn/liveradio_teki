@@ -1,6 +1,7 @@
 """
 Sample data and fixtures for testing
 """
+
 import json
 import os
 from pathlib import Path
@@ -13,7 +14,7 @@ FIXTURES_DIR = Path(__file__).parent
 def load_json_fixture(filename: str) -> Dict[str, Any]:
     """Load a JSON fixture file."""
     filepath = FIXTURES_DIR / "payloads" / filename
-    with open(filepath, 'r') as f:
+    with open(filepath, "r") as f:
         return json.load(f)
 
 
@@ -37,7 +38,7 @@ def get_sample_track_metadata() -> List[Dict[str, Any]]:
             "album": "Album Name",
             "azuracast_song_id": "123",
             "loop_file_path": "/srv/loops/tracks/track_123_loop.mp4",
-            "duration": 180
+            "duration": 180,
         },
         {
             "track_key": "test artist - test song",
@@ -46,7 +47,7 @@ def get_sample_track_metadata() -> List[Dict[str, Any]]:
             "album": "Test Album",
             "azuracast_song_id": "456",
             "loop_file_path": "/srv/loops/tracks/track_456_loop.mp4",
-            "duration": 200
+            "duration": 200,
         },
         {
             "track_key": "dj mix - epic beats",
@@ -55,8 +56,8 @@ def get_sample_track_metadata() -> List[Dict[str, Any]]:
             "album": "Best of 2025",
             "azuracast_song_id": "789",
             "loop_file_path": "/srv/loops/tracks/track_789_loop.mp4",
-            "duration": 240
-        }
+            "duration": 240,
+        },
     ]
 
 
@@ -67,20 +68,13 @@ def get_sample_error_events() -> List[Dict[str, Any]]:
             "service": "ffmpeg",
             "severity": "error",
             "message": "FFmpeg process crashed",
-            "context": {
-                "pid": 12345,
-                "exit_code": 1,
-                "stderr": "Error opening file"
-            }
+            "context": {"pid": 12345, "exit_code": 1, "stderr": "Error opening file"},
         },
         {
             "service": "metadata_watcher",
             "severity": "warning",
             "message": "Audio stream unavailable",
-            "context": {
-                "url": "http://azuracast:8000/radio",
-                "retry_count": 2
-            }
+            "context": {"url": "http://azuracast:8000/radio", "retry_count": 2},
         },
         {
             "service": "rtmp",
@@ -88,9 +82,9 @@ def get_sample_error_events() -> List[Dict[str, Any]]:
             "message": "RTMP connection refused",
             "context": {
                 "endpoint": "rtmp://nginx-rtmp:1935/live/stream",
-                "error": "Connection timeout"
-            }
-        }
+                "error": "Connection timeout",
+            },
+        },
     ]
 
 
@@ -99,23 +93,39 @@ def get_sample_ffmpeg_command() -> List[str]:
     return [
         "ffmpeg",
         "-re",
-        "-stream_loop", "-1",
-        "-i", "/srv/loops/tracks/track_123_loop.mp4",
-        "-i", "http://azuracast:8000/radio",
-        "-map", "0:v",
-        "-map", "1:a",
-        "-vf", "fade=t=in:st=0:d=1.0,scale=1280:720,format=yuv420p",
-        "-c:v", "libx264",
-        "-preset", "veryfast",
-        "-g", "50",
-        "-keyint_min", "50",
-        "-b:v", "3000k",
-        "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        "-b:a", "192k",
-        "-ar", "44100",
-        "-f", "flv",
-        "rtmp://nginx-rtmp:1935/live/stream"
+        "-stream_loop",
+        "-1",
+        "-i",
+        "/srv/loops/tracks/track_123_loop.mp4",
+        "-i",
+        "http://azuracast:8000/radio",
+        "-map",
+        "0:v",
+        "-map",
+        "1:a",
+        "-vf",
+        "fade=t=in:st=0:d=1.0,scale=1280:720,format=yuv420p",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-g",
+        "50",
+        "-keyint_min",
+        "50",
+        "-b:v",
+        "3000k",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
+        "-ar",
+        "44100",
+        "-f",
+        "flv",
+        "rtmp://nginx-rtmp:1935/live/stream",
     ]
 
 
@@ -138,7 +148,7 @@ def get_sample_env_vars() -> Dict[str, str]:
         "API_TOKEN": "test-api-token-abcdef",
         "DISCORD_WEBHOOK_URL": "https://discord.com/api/webhooks/test",
         "SLACK_WEBHOOK_URL": "https://hooks.slack.com/services/test",
-        "ENVIRONMENT": "test"
+        "ENVIRONMENT": "test",
     }
 
 
@@ -169,6 +179,3 @@ radio_stream_uptime_seconds 86400
 # TYPE radio_current_track_duration_seconds gauge
 radio_current_track_duration_seconds 180
 """
-
-
-

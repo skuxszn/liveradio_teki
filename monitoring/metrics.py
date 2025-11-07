@@ -233,6 +233,3 @@ class MetricsExporter:
             "audio_stream_available": bool(self.audio_stream_available._value.get()),
             "rtmp_connected": bool(self.rtmp_connection_status._value.get()),
         }
-
-
-

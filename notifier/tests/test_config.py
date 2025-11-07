@@ -76,7 +76,11 @@ class TestNotificationConfig:
         original_env = os.environ.copy()
 
         # Clear notification-related vars
-        keys_to_clear = [k for k in os.environ.keys() if k.startswith(("DISCORD_", "SLACK_", "NOTIFICATION_", "QUIET_", "RATE_LIMIT_"))]
+        keys_to_clear = [
+            k
+            for k in os.environ.keys()
+            if k.startswith(("DISCORD_", "SLACK_", "NOTIFICATION_", "QUIET_", "RATE_LIMIT_"))
+        ]
         for key in keys_to_clear:
             os.environ.pop(key, None)
 
@@ -162,7 +166,9 @@ class TestNotificationConfig:
         """Test get_color method."""
         config = NotificationConfig()
 
-        assert config.get_color(NotificationType.TRACK_CHANGE) == NotificationColor.TRACK_CHANGE.value
+        assert (
+            config.get_color(NotificationType.TRACK_CHANGE) == NotificationColor.TRACK_CHANGE.value
+        )
         assert config.get_color(NotificationType.ERROR) == NotificationColor.ERROR.value
         assert config.get_color(NotificationType.WARNING) == NotificationColor.WARNING.value
 
@@ -236,6 +242,3 @@ class TestNotificationConfig:
 
         assert rate_limit.max_per_minute == 10
         assert rate_limit.max_per_hour == 200
-
-
-

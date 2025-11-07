@@ -225,6 +225,3 @@ class TestFFmpegMonitor:
         assert monitor._last_frame_count == 0
         assert monitor._last_frame_time is None
         assert monitor._last_bitrate == 0.0
-
-
-

@@ -35,8 +35,10 @@ class Setting(Base):
 
 # Pydantic models for API
 
+
 class SettingResponse(BaseModel):
     """Setting response model."""
+
     id: int
     category: str
     key: str
@@ -58,17 +60,19 @@ class SettingResponse(BaseModel):
 
 class SettingUpdate(BaseModel):
     """Setting update request."""
+
     value: str = Field(..., description="New setting value")
 
 
 class SettingsBulkUpdate(BaseModel):
     """Bulk settings update request."""
+
     updates: dict[str, str] = Field(..., description="Map of 'category.key' to new value")
 
 
 class ConfigExport(BaseModel):
     """Configuration export model."""
+
     settings: dict[str, dict[str, str]]
     exported_at: datetime
     version: str = "1.0.0"
-

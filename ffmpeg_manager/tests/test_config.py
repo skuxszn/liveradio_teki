@@ -164,6 +164,3 @@ class TestEncodingConfig:
         assert config.resolution == "1920:1080"
         assert config.framerate == 30
         assert config.use_nvenc is False
-
-
-

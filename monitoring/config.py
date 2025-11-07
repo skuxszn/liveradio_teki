@@ -92,6 +92,3 @@ def get_config() -> MonitoringConfig:
     config = MonitoringConfig.from_env()
     config.validate()
     return config
-
-
-

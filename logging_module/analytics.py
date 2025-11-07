@@ -42,16 +42,14 @@ class Analytics:
         config.validate()
         self.config = config
         self.engine: Engine = create_engine(
-            config.database_url,
-            pool_pre_ping=True,
-            echo=config.debug
+            config.database_url, pool_pre_ping=True, echo=config.debug
         )
 
     def get_play_stats(
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        days: Optional[int] = None
+        days: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Get aggregate play statistics for a date range.
 
@@ -85,7 +83,7 @@ class Analytics:
             with self.engine.connect() as conn:
                 result = conn.execute(
                     text("SELECT * FROM get_play_stats(:start_date, :end_date)"),
-                    {"start_date": start_date, "end_date": end_date}
+                    {"start_date": start_date, "end_date": end_date},
                 )
                 row = result.fetchone()
 
@@ -98,7 +96,7 @@ class Analytics:
                         "error_rate": float(row[4] or 0),
                         "uptime_percent": float(row[5] or 0),
                         "start_date": start_date.isoformat(),
-                        "end_date": end_date.isoformat()
+                        "end_date": end_date.isoformat(),
                     }
 
                 return {
@@ -109,7 +107,7 @@ class Analytics:
                     "error_rate": 0.0,
                     "uptime_percent": 0.0,
                     "start_date": start_date.isoformat(),
-                    "end_date": end_date.isoformat()
+                    "end_date": end_date.isoformat(),
                 }
 
         except SQLAlchemyError as e:
@@ -120,7 +118,7 @@ class Analytics:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         days: Optional[int] = None,
-        limit: int = 10
+        limit: int = 10,
     ) -> List[Dict[str, Any]]:
         """Get most played tracks for a date range.
 
@@ -149,28 +147,28 @@ class Analytics:
         try:
             with self.engine.connect() as conn:
                 result = conn.execute(
-                    text("""
+                    text(
+                        """
                         SELECT * FROM get_most_played_tracks(
                             :start_date, :end_date, :limit_count
                         )
-                    """),
-                    {
-                        "start_date": start_date,
-                        "end_date": end_date,
-                        "limit_count": limit
-                    }
+                    """
+                    ),
+                    {"start_date": start_date, "end_date": end_date, "limit_count": limit},
                 )
 
                 tracks = []
                 for row in result:
-                    tracks.append({
-                        "track_key": row[0],
-                        "artist": row[1],
-                        "title": row[2],
-                        "play_count": int(row[3]),
-                        "total_duration_hours": float(row[4] or 0),
-                        "error_count": int(row[5] or 0)
-                    })
+                    tracks.append(
+                        {
+                            "track_key": row[0],
+                            "artist": row[1],
+                            "title": row[2],
+                            "play_count": int(row[3]),
+                            "total_duration_hours": float(row[4] or 0),
+                            "error_count": int(row[5] or 0),
+                        }
+                    )
 
                 return tracks
 
@@ -181,7 +179,7 @@ class Analytics:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        days: Optional[int] = None
+        days: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Get error summary grouped by service and severity.
 
@@ -210,18 +208,20 @@ class Analytics:
             with self.engine.connect() as conn:
                 result = conn.execute(
                     text("SELECT * FROM get_error_summary(:start_date, :end_date)"),
-                    {"start_date": start_date, "end_date": end_date}
+                    {"start_date": start_date, "end_date": end_date},
                 )
 
                 errors = []
                 for row in result:
-                    errors.append({
-                        "service": row[0],
-                        "severity": row[1],
-                        "error_count": int(row[2]),
-                        "resolved_count": int(row[3]),
-                        "unresolved_count": int(row[4])
-                    })
+                    errors.append(
+                        {
+                            "service": row[0],
+                            "severity": row[1],
+                            "error_count": int(row[2]),
+                            "resolved_count": int(row[3]),
+                            "unresolved_count": int(row[4]),
+                        }
+                    )
 
                 return errors
 
@@ -232,7 +232,7 @@ class Analytics:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        days: Optional[int] = None
+        days: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Get play distribution by hour of day.
 
@@ -260,33 +260,32 @@ class Analytics:
         try:
             with self.engine.connect() as conn:
                 result = conn.execute(
-                    text("""
+                    text(
+                        """
                         SELECT * FROM get_hourly_play_distribution(
                             :start_date, :end_date
                         )
-                    """),
-                    {"start_date": start_date, "end_date": end_date}
+                    """
+                    ),
+                    {"start_date": start_date, "end_date": end_date},
                 )
 
                 distribution = []
                 for row in result:
-                    distribution.append({
-                        "hour_of_day": int(row[0]),
-                        "play_count": int(row[1]),
-                        "avg_duration_seconds": float(row[2] or 0)
-                    })
+                    distribution.append(
+                        {
+                            "hour_of_day": int(row[0]),
+                            "play_count": int(row[1]),
+                            "avg_duration_seconds": float(row[2] or 0),
+                        }
+                    )
 
                 return distribution
 
         except SQLAlchemyError as e:
-            raise RuntimeError(
-                f"Database error getting hourly distribution: {e}"
-            ) from e
+            raise RuntimeError(f"Database error getting hourly distribution: {e}") from e
 
-    def get_daily_summary(
-        self,
-        date: Optional[datetime] = None
-    ) -> Dict[str, Any]:
+    def get_daily_summary(self, date: Optional[datetime] = None) -> Dict[str, Any]:
         """Get daily summary for a specific date.
 
         Args:
@@ -307,11 +306,7 @@ class Analytics:
         end_date = start_date + timedelta(days=1)
 
         stats = self.get_play_stats(start_date=start_date, end_date=end_date)
-        most_played = self.get_most_played_tracks(
-            start_date=start_date,
-            end_date=end_date,
-            limit=5
-        )
+        most_played = self.get_most_played_tracks(start_date=start_date, end_date=end_date, limit=5)
         errors = self.get_error_summary(start_date=start_date, end_date=end_date)
 
         return {
@@ -322,13 +317,10 @@ class Analytics:
             "uptime_percent": stats["uptime_percent"],
             "error_rate": stats["error_rate"],
             "most_played_tracks": most_played,
-            "error_summary": errors
+            "error_summary": errors,
         }
 
-    def get_weekly_summary(
-        self,
-        week_start: Optional[datetime] = None
-    ) -> Dict[str, Any]:
+    def get_weekly_summary(self, week_start: Optional[datetime] = None) -> Dict[str, Any]:
         """Get weekly summary starting from a specific date.
 
         Args:
@@ -348,15 +340,10 @@ class Analytics:
 
         stats = self.get_play_stats(start_date=week_start, end_date=end_date)
         most_played = self.get_most_played_tracks(
-            start_date=week_start,
-            end_date=end_date,
-            limit=10
+            start_date=week_start, end_date=end_date, limit=10
         )
         errors = self.get_error_summary(start_date=week_start, end_date=end_date)
-        hourly = self.get_hourly_play_distribution(
-            start_date=week_start,
-            end_date=end_date
-        )
+        hourly = self.get_hourly_play_distribution(start_date=week_start, end_date=end_date)
 
         return {
             "week_start": week_start.date().isoformat(),
@@ -368,15 +355,10 @@ class Analytics:
             "error_rate": stats["error_rate"],
             "most_played_tracks": most_played,
             "error_summary": errors,
-            "hourly_distribution": hourly
+            "hourly_distribution": hourly,
         }
 
-    def get_track_history(
-        self,
-        artist: str,
-        title: str,
-        limit: int = 50
-    ) -> List[Dict[str, Any]]:
+    def get_track_history(self, artist: str, title: str, limit: int = 50) -> List[Dict[str, Any]]:
         """Get play history for a specific track.
 
         Args:
@@ -396,7 +378,8 @@ class Analytics:
         try:
             with self.engine.connect() as conn:
                 result = conn.execute(
-                    text("""
+                    text(
+                        """
                         SELECT
                             id, started_at, ended_at, duration_seconds,
                             had_errors, error_message, ffmpeg_pid,
@@ -405,22 +388,25 @@ class Analytics:
                         WHERE track_key = :track_key
                         ORDER BY started_at DESC
                         LIMIT :limit
-                    """),
-                    {"track_key": track_key, "limit": limit}
+                    """
+                    ),
+                    {"track_key": track_key, "limit": limit},
                 )
 
                 history = []
                 for row in result:
-                    history.append({
-                        "id": row[0],
-                        "started_at": row[1].isoformat() if row[1] else None,
-                        "ended_at": row[2].isoformat() if row[2] else None,
-                        "duration_seconds": row[3],
-                        "had_errors": row[4],
-                        "error_message": row[5],
-                        "ffmpeg_pid": row[6],
-                        "loop_file_path": row[7]
-                    })
+                    history.append(
+                        {
+                            "id": row[0],
+                            "started_at": row[1].isoformat() if row[1] else None,
+                            "ended_at": row[2].isoformat() if row[2] else None,
+                            "duration_seconds": row[3],
+                            "had_errors": row[4],
+                            "error_message": row[5],
+                            "ffmpeg_pid": row[6],
+                            "loop_file_path": row[7],
+                        }
+                    )
 
                 return history
 
@@ -431,7 +417,7 @@ class Analytics:
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
-        days: Optional[int] = None
+        days: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Get daily uptime percentages for a date range.
 
@@ -459,7 +445,8 @@ class Analytics:
         try:
             with self.engine.connect() as conn:
                 result = conn.execute(
-                    text("""
+                    text(
+                        """
                         SELECT
                             DATE(started_at) as date,
                             COUNT(*) as total_plays,
@@ -471,19 +458,22 @@ class Analytics:
                         WHERE started_at >= :start_date AND started_at <= :end_date
                         GROUP BY DATE(started_at)
                         ORDER BY DATE(started_at) DESC
-                    """),
-                    {"start_date": start_date, "end_date": end_date}
+                    """
+                    ),
+                    {"start_date": start_date, "end_date": end_date},
                 )
 
                 uptime_data = []
                 for row in result:
-                    uptime_data.append({
-                        "date": row[0].isoformat(),
-                        "total_plays": int(row[1]),
-                        "successful_plays": int(row[2]),
-                        "uptime_percent": float(row[3] or 0),
-                        "total_hours": float(row[4] or 0)
-                    })
+                    uptime_data.append(
+                        {
+                            "date": row[0].isoformat(),
+                            "total_plays": int(row[1]),
+                            "successful_plays": int(row[2]),
+                            "uptime_percent": float(row[3] or 0),
+                            "total_hours": float(row[4] or 0),
+                        }
+                    )
 
                 return uptime_data
 
@@ -495,7 +485,7 @@ class Analytics:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         days: Optional[int] = None,
-        severity: Optional[str] = None
+        severity: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Get error timeline for a date range.
 
@@ -525,7 +515,8 @@ class Analytics:
             with self.engine.connect() as conn:
                 if severity:
                     result = conn.execute(
-                        text("""
+                        text(
+                            """
                             SELECT
                                 id, timestamp, service, severity,
                                 message, resolved
@@ -534,16 +525,18 @@ class Analytics:
                               AND timestamp <= :end_date
                               AND severity = :severity
                             ORDER BY timestamp DESC
-                        """),
+                        """
+                        ),
                         {
                             "start_date": start_date,
                             "end_date": end_date,
-                            "severity": severity.lower()
-                        }
+                            "severity": severity.lower(),
+                        },
                     )
                 else:
                     result = conn.execute(
-                        text("""
+                        text(
+                            """
                             SELECT
                                 id, timestamp, service, severity,
                                 message, resolved
@@ -551,20 +544,23 @@ class Analytics:
                             WHERE timestamp >= :start_date 
                               AND timestamp <= :end_date
                             ORDER BY timestamp DESC
-                        """),
-                        {"start_date": start_date, "end_date": end_date}
+                        """
+                        ),
+                        {"start_date": start_date, "end_date": end_date},
                     )
 
                 errors = []
                 for row in result:
-                    errors.append({
-                        "id": row[0],
-                        "timestamp": row[1].isoformat() if row[1] else None,
-                        "service": row[2],
-                        "severity": row[3],
-                        "message": row[4],
-                        "resolved": row[5]
-                    })
+                    errors.append(
+                        {
+                            "id": row[0],
+                            "timestamp": row[1].isoformat() if row[1] else None,
+                            "service": row[2],
+                            "severity": row[3],
+                            "message": row[4],
+                            "resolved": row[5],
+                        }
+                    )
 
                 return errors
 
@@ -589,6 +585,3 @@ class Analytics:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         self.close()
-
-
-

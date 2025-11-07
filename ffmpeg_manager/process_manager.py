@@ -74,6 +74,7 @@ class FFmpegProcessManager:
         """
         if config is None:
             from ffmpeg_manager.config import get_config
+
             config = get_config()
 
         self.config = config
@@ -157,9 +158,7 @@ class FFmpegProcessManager:
                 # Check if process is still running
                 if process.poll() is None:
                     process_info.state = ProcessState.RUNNING
-                    logger.info(
-                        f"FFmpeg stream started successfully (PID: {process.pid})"
-                    )
+                    logger.info(f"FFmpeg stream started successfully (PID: {process.pid})")
                     return True
                 else:
                     # Process died immediately
@@ -356,9 +355,7 @@ class FFmpegProcessManager:
                 return True
 
             except subprocess.TimeoutExpired:
-                logger.warning(
-                    f"Process {process.pid} did not terminate gracefully, force killing"
-                )
+                logger.warning(f"Process {process.pid} did not terminate gracefully, force killing")
                 process.kill()
                 process.wait(timeout=5)
                 process_info.state = ProcessState.STOPPED
@@ -437,6 +434,7 @@ class FFmpegProcessManager:
                             # Set non-blocking mode
                             import fcntl
                             import os
+
                             fd = process.stderr.fileno()
                             fl = fcntl.fcntl(fd, fcntl.F_GETFL)
                             fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
@@ -544,6 +542,3 @@ class FFmpegProcessManager:
             self._current_process is not None
             and self._current_process.state == ProcessState.RUNNING
         )
-
-
-

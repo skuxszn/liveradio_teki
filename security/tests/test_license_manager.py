@@ -354,5 +354,3 @@ class TestLicenseManager:
             # Should not raise an error, just create empty/header-only CSV
         finally:
             Path(csv_path).unlink()
-
-

@@ -282,6 +282,3 @@ class DiscordClient:
         except Exception as e:
             logger.error(f"Error in sync Discord send: {e}")
             return False
-
-
-

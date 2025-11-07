@@ -12,7 +12,12 @@ class TestConfig:
     def test_from_env_missing_required(self, monkeypatch):
         """Test that missing required variables raise ValueError."""
         # Clear all env vars
-        for key in ["AZURACAST_URL", "AZURACAST_API_KEY", "AZURACAST_AUDIO_URL", "POSTGRES_PASSWORD"]:
+        for key in [
+            "AZURACAST_URL",
+            "AZURACAST_API_KEY",
+            "AZURACAST_AUDIO_URL",
+            "POSTGRES_PASSWORD",
+        ]:
             monkeypatch.delenv(key, raising=False)
 
         with pytest.raises(ValueError, match="Missing required environment variables"):
@@ -156,7 +161,3 @@ class TestConfig:
         config = Config.from_env()
 
         assert config.rtmp_endpoint == "rtmp://custom-rtmp:1936/live/stream"
-
-
-
-

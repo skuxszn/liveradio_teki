@@ -110,15 +110,14 @@ def mock_requests_session(monkeypatch):
     mock_response.status_code = 200
     mock_response.json.return_value = {"status": "ok"}
     mock_response.text = "OK"
-    
+
     mock_session = Mock()
     mock_session.get.return_value = mock_response
     mock_session.post.return_value = mock_response
-    
+
     import requests
+
     monkeypatch.setattr(requests, "get", mock_session.get)
     monkeypatch.setattr(requests, "post", mock_session.post)
-    
+
     return mock_session
-
-

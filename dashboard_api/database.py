@@ -24,7 +24,7 @@ Base = declarative_base(metadata=metadata)
 
 def get_db():
     """Dependency for getting database session.
-    
+
     Yields:
         Session: SQLAlchemy database session.
     """
@@ -33,4 +33,3 @@ def get_db():
         yield db
     finally:
         db.close()
-

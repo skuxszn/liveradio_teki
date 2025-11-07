@@ -92,7 +92,9 @@ def test_rate_limiting(notifier: Notifier) -> None:
             blocked += 1
 
     logger.info(f"Rate limiting test: {sent} sent, {blocked} blocked by rate limiter")
-    logger.info("Rate limiter is working correctly!" if blocked > 0 else "⚠️ No rate limiting observed")
+    logger.info(
+        "Rate limiter is working correctly!" if blocked > 0 else "⚠️ No rate limiting observed"
+    )
 
 
 def test_custom_notification(notifier: Notifier) -> None:
@@ -115,7 +117,9 @@ def test_custom_notification(notifier: Notifier) -> None:
 def print_configuration(config: NotificationConfig) -> None:
     """Print current notification configuration."""
     logger.info("=== Notification Configuration ===")
-    logger.info(f"Discord webhook configured: {'✅ Yes' if config.discord_webhook_url else '❌ No'}")
+    logger.info(
+        f"Discord webhook configured: {'✅ Yes' if config.discord_webhook_url else '❌ No'}"
+    )
     logger.info(f"Slack webhook configured: {'✅ Yes' if config.slack_webhook_url else '❌ No'}")
     logger.info(f"Notifications enabled: {config.enabled}")
     logger.info(f"Rate limiting enabled: {config.rate_limit_enabled}")
@@ -132,15 +136,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Test the notification system")
     parser.add_argument(
         "--type",
-        choices=["track_change", "error", "warning", "info", "daily_summary", "rate_limit", "custom"],
+        choices=[
+            "track_change",
+            "error",
+            "warning",
+            "info",
+            "daily_summary",
+            "rate_limit",
+            "custom",
+        ],
         help="Test a specific notification type",
     )
-    parser.add_argument(
-        "--all", action="store_true", help="Run all notification tests"
-    )
-    parser.add_argument(
-        "--config", action="store_true", help="Print configuration and exit"
-    )
+    parser.add_argument("--all", action="store_true", help="Run all notification tests")
+    parser.add_argument("--config", action="store_true", help="Print configuration and exit")
     parser.add_argument(
         "--force", action="store_true", help="Force send (bypass rate limits and quiet hours)"
     )
@@ -212,6 +220,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-

@@ -70,19 +70,18 @@ def migrate_settings(db: Session):
     """Add missing settings to database."""
     added_count = 0
     updated_count = 0
-    
+
     for category, settings in REQUIRED_SETTINGS.items():
         for key, default_value, is_secret, description in settings:
             # Check if setting exists
-            existing = db.query(Setting).filter(
-                Setting.category == category,
-                Setting.key == key
-            ).first()
-            
+            existing = (
+                db.query(Setting).filter(Setting.category == category, Setting.key == key).first()
+            )
+
             if not existing:
                 # Try to get value from environment
                 env_value = os.getenv(key, default_value)
-                
+
                 # Create setting
                 setting = Setting(
                     category=category,
@@ -91,7 +90,7 @@ def migrate_settings(db: Session):
                     value_type="string",  # Default to string type
                     default_value=default_value,
                     description=description,
-                    is_secret=is_secret
+                    is_secret=is_secret,
                 )
                 db.add(setting)
                 added_count += 1
@@ -108,11 +107,11 @@ def migrate_settings(db: Session):
                 if existing.is_secret != is_secret:
                     existing.is_secret = is_secret
                     changed = True
-                
+
                 if changed:
                     updated_count += 1
                     print(f"Updated: {category}.{key}")
-    
+
     db.commit()
     print(f"\nMigration complete:")
     print(f"  - {added_count} settings added")
@@ -124,7 +123,7 @@ if __name__ == "__main__":
     print("Dashboard Settings Migration")
     print("=" * 60)
     print()
-    
+
     db = SessionLocal()
     try:
         migrate_settings(db)
@@ -132,8 +131,8 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ Migration failed: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
     finally:
         db.close()
-

@@ -159,18 +159,12 @@ class TestTrackResolver:
     def test_resolve_loop_with_album(self, resolver, mock_config, caplog):
         """Test that album parameter is accepted (used for logging)."""
         import logging
+
         caplog.set_level(logging.INFO)
 
         result = resolver.resolve_loop(
-            "Test Artist",
-            "Test Title",
-            song_id="123",
-            album="Test Album"
+            "Test Artist", "Test Title", song_id="123", album="Test Album"
         )
 
         # Should return default since no specific loop exists
         assert result == mock_config.default_loop
-
-
-
-

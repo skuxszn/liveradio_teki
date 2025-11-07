@@ -1,7 +1,3 @@
 """
 Integration tests package
 """
-
-
-
-

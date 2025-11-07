@@ -6,4 +6,3 @@ from models.audit import AuditLog
 from models.asset import VideoAsset
 
 __all__ = ["User", "Token", "Setting", "AuditLog", "VideoAsset"]
-

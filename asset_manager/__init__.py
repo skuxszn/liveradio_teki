@@ -11,5 +11,3 @@ from asset_manager.overlay_generator import OverlayGenerator
 
 __version__ = "1.0.0"
 __all__ = ["AssetManager", "VideoValidator", "ValidationResult", "OverlayGenerator"]
-
-

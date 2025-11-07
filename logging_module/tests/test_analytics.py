@@ -17,7 +17,7 @@ class TestAnalytics:
     def test_get_play_stats_empty_database(self, test_analytics):
         """Test getting play stats from empty database."""
         stats = test_analytics.get_play_stats(days=7)
-        
+
         assert stats["total_plays"] == 0
         assert stats["unique_tracks"] == 0
         assert stats["total_duration_hours"] == 0.0
@@ -26,7 +26,7 @@ class TestAnalytics:
     def test_get_play_stats_with_data(self, test_analytics, populated_database):
         """Test getting play stats with populated database."""
         stats = test_analytics.get_play_stats(days=30)
-        
+
         assert stats["total_plays"] > 0
         assert stats["unique_tracks"] > 0
         assert "start_date" in stats
@@ -36,25 +36,22 @@ class TestAnalytics:
         """Test getting play stats with custom date range."""
         start_date = datetime.now() - timedelta(days=14)
         end_date = datetime.now()
-        
-        stats = test_analytics.get_play_stats(
-            start_date=start_date,
-            end_date=end_date
-        )
-        
+
+        stats = test_analytics.get_play_stats(start_date=start_date, end_date=end_date)
+
         assert stats is not None
         assert isinstance(stats, dict)
 
     def test_get_most_played_tracks_empty(self, test_analytics):
         """Test getting most played tracks from empty database."""
         tracks = test_analytics.get_most_played_tracks(days=7)
-        
+
         assert tracks == []
 
     def test_get_most_played_tracks_with_data(self, test_analytics, populated_database):
         """Test getting most played tracks with populated database."""
         tracks = test_analytics.get_most_played_tracks(days=30, limit=5)
-        
+
         assert isinstance(tracks, list)
         # Check structure of first track if any exist
         if tracks:
@@ -68,19 +65,19 @@ class TestAnalytics:
     def test_get_most_played_tracks_limit(self, test_analytics, populated_database):
         """Test limit parameter for most played tracks."""
         tracks = test_analytics.get_most_played_tracks(days=30, limit=3)
-        
+
         assert len(tracks) <= 3
 
     def test_get_error_summary_empty(self, test_analytics):
         """Test getting error summary from empty database."""
         errors = test_analytics.get_error_summary(days=7)
-        
+
         assert errors == []
 
     def test_get_error_summary_with_data(self, test_analytics, populated_database):
         """Test getting error summary with populated database."""
         errors = test_analytics.get_error_summary(days=30)
-        
+
         assert isinstance(errors, list)
         # Check structure if any errors exist
         if errors:
@@ -94,13 +91,13 @@ class TestAnalytics:
     def test_get_hourly_play_distribution_empty(self, test_analytics):
         """Test getting hourly distribution from empty database."""
         distribution = test_analytics.get_hourly_play_distribution(days=7)
-        
+
         assert isinstance(distribution, list)
 
     def test_get_hourly_play_distribution_with_data(self, test_analytics, populated_database):
         """Test getting hourly distribution with populated database."""
         distribution = test_analytics.get_hourly_play_distribution(days=30)
-        
+
         assert isinstance(distribution, list)
         # Check structure if any data exists
         if distribution:
@@ -113,7 +110,7 @@ class TestAnalytics:
     def test_get_daily_summary(self, test_analytics, populated_database):
         """Test getting daily summary."""
         summary = test_analytics.get_daily_summary()
-        
+
         assert isinstance(summary, dict)
         assert "date" in summary
         assert "total_plays" in summary
@@ -126,14 +123,14 @@ class TestAnalytics:
         """Test getting daily summary for specific date."""
         specific_date = datetime.now() - timedelta(days=3)
         summary = test_analytics.get_daily_summary(date=specific_date)
-        
+
         assert isinstance(summary, dict)
         assert "date" in summary
 
     def test_get_weekly_summary(self, test_analytics, populated_database):
         """Test getting weekly summary."""
         summary = test_analytics.get_weekly_summary()
-        
+
         assert isinstance(summary, dict)
         assert "week_start" in summary
         assert "week_end" in summary
@@ -148,20 +145,20 @@ class TestAnalytics:
         """Test getting weekly summary for specific week."""
         week_start = datetime.now() - timedelta(days=14)
         summary = test_analytics.get_weekly_summary(week_start=week_start)
-        
+
         assert isinstance(summary, dict)
 
     def test_get_track_history_empty(self, test_analytics):
         """Test getting track history for non-existent track."""
         history = test_analytics.get_track_history("Unknown", "Track")
-        
+
         assert history == []
 
     def test_get_track_history_with_data(self, test_analytics, populated_database):
         """Test getting track history with populated database."""
         # Use track that exists in populated_database
         history = test_analytics.get_track_history("Artist 0", "Song 0")
-        
+
         assert isinstance(history, list)
         # Check structure if any history exists
         if history:
@@ -173,19 +170,19 @@ class TestAnalytics:
     def test_get_track_history_limit(self, test_analytics, populated_database):
         """Test limit parameter for track history."""
         history = test_analytics.get_track_history("Artist 0", "Song 0", limit=2)
-        
+
         assert len(history) <= 2
 
     def test_get_uptime_by_day_empty(self, test_analytics):
         """Test getting uptime by day from empty database."""
         uptime = test_analytics.get_uptime_by_day(days=7)
-        
+
         assert isinstance(uptime, list)
 
     def test_get_uptime_by_day_with_data(self, test_analytics, populated_database):
         """Test getting uptime by day with populated database."""
         uptime = test_analytics.get_uptime_by_day(days=30)
-        
+
         assert isinstance(uptime, list)
         # Check structure if any data exists
         if uptime:
@@ -199,13 +196,13 @@ class TestAnalytics:
     def test_get_error_timeline_empty(self, test_analytics):
         """Test getting error timeline from empty database."""
         timeline = test_analytics.get_error_timeline(days=7)
-        
+
         assert timeline == []
 
     def test_get_error_timeline_with_data(self, test_analytics, populated_database):
         """Test getting error timeline with populated database."""
         timeline = test_analytics.get_error_timeline(days=30)
-        
+
         assert isinstance(timeline, list)
         # Check structure if any errors exist
         if timeline:
@@ -219,7 +216,7 @@ class TestAnalytics:
     def test_get_error_timeline_filtered_by_severity(self, test_analytics, populated_database):
         """Test getting error timeline filtered by severity."""
         timeline = test_analytics.get_error_timeline(days=30, severity="error")
-        
+
         assert isinstance(timeline, list)
         # All errors should have 'error' severity
         for error in timeline:
@@ -244,12 +241,9 @@ class TestAnalyticsEdgeCases:
         """Test getting stats with future dates."""
         start_date = datetime.now() + timedelta(days=1)
         end_date = datetime.now() + timedelta(days=7)
-        
-        stats = test_analytics.get_play_stats(
-            start_date=start_date,
-            end_date=end_date
-        )
-        
+
+        stats = test_analytics.get_play_stats(start_date=start_date, end_date=end_date)
+
         # Should return zero stats
         assert stats["total_plays"] == 0
 
@@ -258,25 +252,22 @@ class TestAnalyticsEdgeCases:
         # This should still work, just return no results
         start_date = datetime.now()
         end_date = datetime.now() - timedelta(days=7)
-        
-        stats = test_analytics.get_play_stats(
-            start_date=start_date,
-            end_date=end_date
-        )
-        
+
+        stats = test_analytics.get_play_stats(start_date=start_date, end_date=end_date)
+
         assert stats["total_plays"] == 0
 
     def test_get_most_played_tracks_zero_limit(self, test_analytics, populated_database):
         """Test getting most played tracks with zero limit."""
         tracks = test_analytics.get_most_played_tracks(days=7, limit=0)
-        
+
         assert tracks == []
 
     def test_get_track_history_case_insensitive(self, test_analytics, populated_database):
         """Test track history lookup is case insensitive."""
         history1 = test_analytics.get_track_history("Artist 0", "Song 0")
         history2 = test_analytics.get_track_history("ARTIST 0", "SONG 0")
-        
+
         # Should return same results (normalized internally)
         assert len(history1) == len(history2)
 
@@ -293,25 +284,25 @@ class TestAnalyticsIntegration:
                     "artist": f"Artist {i % 2}",
                     "title": f"Song {i % 3}",
                     "album": "Test Album",
-                    "duration": 180
+                    "duration": 180,
                 },
                 f"/srv/loops/track{i}.mp4",
-                12345 + i
+                12345 + i,
             )
-            
+
             # Log some errors
             if i % 2 == 0:
                 test_logger.log_error("ffmpeg", "warning", f"Warning {i}")
-            
+
             test_logger.log_track_ended(play_id)
-        
+
         # Get analytics
         stats = test_analytics.get_play_stats(days=1)
         assert stats["total_plays"] == 5
-        
+
         most_played = test_analytics.get_most_played_tracks(days=1)
         assert len(most_played) > 0
-        
+
         errors = test_analytics.get_error_summary(days=1)
         assert len(errors) > 0
 
@@ -319,22 +310,15 @@ class TestAnalyticsIntegration:
         """Test daily and weekly summary generation."""
         # Log a track
         play_id = test_logger.log_track_started(
-            {
-                "artist": "Test Artist",
-                "title": "Test Song",
-                "duration": 180
-            },
+            {"artist": "Test Artist", "title": "Test Song", "duration": 180},
             "/srv/loops/test.mp4",
-            12345
+            12345,
         )
         test_logger.log_track_ended(play_id)
-        
+
         # Get summaries
         daily = test_analytics.get_daily_summary()
         assert daily is not None
-        
+
         weekly = test_analytics.get_weekly_summary()
         assert weekly is not None
-
-
-
