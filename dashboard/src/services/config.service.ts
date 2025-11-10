@@ -113,6 +113,21 @@ export const configService = {
     );
     return response.data;
   },
+
+  /**
+   * Trigger immediate config reload on metadata-watcher service.
+   * This forces metadata-watcher to fetch the latest config from the database
+   * instead of waiting for the 60-second auto-refresh cycle.
+   */
+  async reloadMetadataWatcherConfig(): Promise<{
+    status: string;
+    message: string;
+    changed_keys: string[];
+    config_version: number;
+  }> {
+    const response = await api.post('/config/reload-services');
+    return response.data;
+  },
 };
 
 export default configService;

@@ -600,6 +600,90 @@ async def manual_track_switch(payload: ManualSwitchRequest, request: Request):
         )
 
 
+@app.post("/config/reload", status_code=status.HTTP_200_OK)
+async def reload_config(request: Request):
+    """Force immediate configuration reload from dashboard.
+    
+    Requires API token authentication.
+    
+    Returns:
+        dict: Reload result with changed keys.
+    
+    Raises:
+        HTTPException: If authentication fails or reload errors.
+    """
+    global config, _config_version
+    
+    # Validate API token if configured
+    if config.api_token:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing or invalid authorization header",
+            )
+        
+        provided_token = auth_header.split(" ")[1]
+        if provided_token != config.api_token:
+            logger.warning(f"Invalid API token from {request.client.host}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API token"
+            )
+    
+    logger.info("Manual config reload requested")
+    
+    try:
+        # Store old config for comparison
+        old_config_dict = config_fetcher.current_config.__dict__.copy() if config_fetcher.current_config else {}
+        
+        # Fetch new config immediately
+        new_config = await config_fetcher.fetch_config()
+        
+        if not new_config:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Failed to fetch configuration from dashboard"
+            )
+        
+        # Compare and find changed keys
+        changed_keys = []
+        for key, value in new_config.__dict__.items():
+            if old_config_dict.get(key) != value:
+                changed_keys.append(key)
+        
+        # Apply the new config to global config
+        config = new_config
+        
+        # Update FFmpegManager config
+        if changed_keys and ffmpeg_manager:
+            logger.info(f"Applying config changes to FFmpegManager: {', '.join(changed_keys)}")
+            ffmpeg_manager.config = new_config  # Use property setter to update config
+        
+        # Update track mapper config if DB-related settings changed
+        db_keys = {'postgres_user', 'postgres_password', 'postgres_db', 'postgres_host', 'postgres_port'}
+        if any(k in db_keys for k in changed_keys) and track_mapper:
+            logger.info("Database config changed - track mapper will use new settings on next request")
+        
+        _config_version += 1
+        config_version_gauge.set(_config_version)
+        
+        return {
+            "status": "success",
+            "message": "Configuration reloaded",
+            "changed_keys": changed_keys,
+            "config_version": _config_version,
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error reloading config: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reload config: {str(e)}"
+        )
+
+
 @app.get("/logs/latest")
 async def get_latest_logs(request: Request):
     """Get latest FFmpeg log file content.
@@ -671,6 +755,7 @@ async def root():
             "health": "/health",
             "status": "/status",
             "manual_switch": "/manual/switch",
+            "config_reload": "/config/reload",
             "logs": "/logs/latest",
         },
     }
