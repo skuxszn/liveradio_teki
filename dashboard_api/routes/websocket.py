@@ -82,3 +82,4 @@ async def websocket_endpoint(websocket: WebSocket, client_id: Optional[str] = Qu
     except Exception as e:
         logger.error(f"WebSocket error for {client_id}: {e}")
         manager.disconnect(websocket)
+

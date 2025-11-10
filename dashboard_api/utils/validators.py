@@ -104,3 +104,4 @@ def validate_username(username: str) -> bool:
     # Alphanumeric, underscore, hyphen, 3-128 characters
     pattern = r"^[a-zA-Z0-9_-]{3,128}$"
     return bool(re.match(pattern, username))
+

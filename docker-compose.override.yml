@@ -44,7 +44,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./track_mapper/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:rw
-      - ./logging_module/schema.sql:/docker-entrypoint-initdb.d/02_logging_schema.sql:rw
       - ./scripts:/scripts:ro
 
   # Development overrides for prometheus

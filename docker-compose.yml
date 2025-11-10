@@ -53,14 +53,13 @@ services:
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - WEBHOOK_SECRET=${WEBHOOK_SECRET}
-      - DEFAULT_LOOP=/app/loops/default.mp4
+      - DEFAULT_LOOP=/srv/loops/default.mp4
       - VIDEO_RESOLUTION=${VIDEO_RESOLUTION:-1280:720}
       - VIDEO_BITRATE=${VIDEO_BITRATE:-3000k}
       - VIDEO_ENCODER=${VIDEO_ENCODER:-libx264}
       - FFMPEG_PRESET=${FFMPEG_PRESET:-ultrafast}
     volumes:
-      - ./loops:/app/loops:ro  # Read-only access to video loops
-      - ./loops:/srv/loops:ro  # Ensure default_config path is valid
+      - ./loops:/srv/loops:ro  # Canonical read-only access to video loops
       - ./logos:/app/logos:ro  # Read-only access to logo files for watermark
       - radio_logs:/var/log/radio  # Named volume for logs with correct permissions
       - stream-control:/app/stream:rw  # Shared volume for dashboard integration

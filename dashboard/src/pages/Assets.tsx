@@ -5,20 +5,26 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Upload, Trash2, CheckCircle2, XCircle, Play, HardDrive } from 'lucide-react';
+import { Upload, Trash2, CheckCircle2, XCircle, Play, HardDrive, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import assetService, { type VideoAsset } from '@/services/asset.service';
+import { GridSkeleton } from '@/components/skeletons/GridSkeleton';
+import { toast } from '@/components/feedback/ToastProvider';
+import { QueryError } from '@/components/common/QueryError';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function Assets() {
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
+  const [usageOpen, setUsageOpen] = useState(false);
+  const [usageData, setUsageData] = useState<{ filename: string; usage: Array<{ id: number; artist: string; title: string; play_count: number; last_played_at?: string }>; count: number } | null>(null);
 
   // Fetch assets
-  const { data: assets, isLoading } = useQuery({
+  const { data: assets, isLoading, error, refetch } = useQuery({
     queryKey: ['assets'],
     queryFn: () => assetService.getAll(),
   });
@@ -38,12 +44,12 @@ export default function Assets() {
       queryClient.invalidateQueries({ queryKey: ['asset-stats'] });
       setUploading(false);
       setUploadProgress(0);
-      alert('File uploaded successfully!');
+      toast('File uploaded successfully!', 'success');
     },
     onError: (error: any) => {
       setUploading(false);
       setUploadProgress(0);
-      alert(`Upload failed: ${error.response?.data?.detail || error.message}`);
+      toast(`Upload failed: ${error.response?.data?.detail || error.message}`, 'error');
     },
   });
 
@@ -55,7 +61,7 @@ export default function Assets() {
       queryClient.invalidateQueries({ queryKey: ['asset-stats'] });
     },
     onError: (error: any) => {
-      alert(`Delete failed: ${error.response?.data?.detail || error.message}`);
+      toast(`Delete failed: ${error.response?.data?.detail || error.message}`, 'error');
     },
   });
 
@@ -71,7 +77,7 @@ export default function Assets() {
     if (mp4Files.length > 0) {
       handleFileUpload(mp4Files[0]);
     } else {
-      alert('Please drop an MP4 file');
+      toast('Please drop an MP4 file', 'warning');
     }
   }, []);
 
@@ -95,15 +101,9 @@ export default function Assets() {
 
   // Handle file upload
   const handleFileUpload = (file: File) => {
-    if (!file.name.toLowerCase().endsWith('.mp4')) {
-      alert('Only MP4 files are allowed');
-      return;
-    }
+    if (!file.name.toLowerCase().endsWith('.mp4')) { toast('Only MP4 files are allowed', 'warning'); return; }
 
-    if (file.size > 100 * 1024 * 1024) {
-      alert('File too large. Maximum size: 100MB');
-      return;
-    }
+    if (file.size > 100 * 1024 * 1024) { toast('File too large. Maximum size: 100MB', 'warning'); return; }
 
     setUploading(true);
     uploadMutation.mutate(file);
@@ -113,6 +113,16 @@ export default function Assets() {
   const handleDelete = (asset: VideoAsset) => {
     if (confirm(`Delete ${asset.filename}?`)) {
       deleteMutation.mutate(asset.filename);
+    }
+  };
+
+  const handleFindUsage = async (asset: VideoAsset) => {
+    try {
+      const data = await assetService.getUsage(asset.filename);
+      setUsageData(data);
+      setUsageOpen(true);
+    } catch (e: any) {
+      toast(`Failed to fetch usage: ${e.response?.data?.detail || e.message}`, 'error');
     }
   };
 
@@ -132,13 +142,7 @@ export default function Assets() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-gray-500">Loading assets...</div>
-      </div>
-    );
-  }
+  if (isLoading) { return <GridSkeleton count={8} /> }
 
   return (
     <div className="space-y-6">
@@ -146,6 +150,10 @@ export default function Assets() {
         <h1 className="text-3xl font-bold">Video Assets</h1>
         <p className="text-gray-500">Manage video loop files</p>
       </div>
+
+      {error && (
+        <QueryError message={(error as any)?.message} onRetry={() => refetch()} />
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -280,16 +288,29 @@ export default function Assets() {
                 )}
               </div>
 
-              <Button
-                variant="destructive"
-                size="sm"
-                className="w-full"
-                onClick={() => handleDelete(asset)}
-                disabled={deleteMutation.isPending}
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  aria-label={`Find usage for ${asset.filename}`}
+                  onClick={() => handleFindUsage(asset)}
+                >
+                  <List className="w-4 h-4 mr-2" />
+                  Usage
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="flex-1"
+                  aria-label={`Delete asset ${asset.filename}`}
+                  onClick={() => handleDelete(asset)}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -305,6 +326,34 @@ export default function Assets() {
           </div>
         )}
       </div>
+
+      {/* Usage Dialog */}
+      <Dialog open={usageOpen} onOpenChange={setUsageOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Asset Usage</DialogTitle>
+            <DialogDescription>
+              {usageData ? `Mappings referencing ${usageData.filename} (${usageData.count})` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-72 overflow-auto text-sm">
+            {usageData?.usage.length ? (
+              <ul className="list-disc pl-5 space-y-1">
+                {usageData.usage.map((u) => (
+                  <li key={u.id}>
+                    <span className="font-medium">{u.artist} - {u.title}</span>
+                    {typeof u.play_count === 'number' && (
+                      <span className="text-gray-600"> • {u.play_count} plays</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-gray-600">No mappings reference this asset.</div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

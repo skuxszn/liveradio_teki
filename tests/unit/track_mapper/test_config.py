@@ -142,3 +142,4 @@ class TestTrackMapperConfig:
         assert config.db_max_overflow == 20
         assert config.db_pool_timeout == 60
         assert config.db_pool_recycle == 7200
+

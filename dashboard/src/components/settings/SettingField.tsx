@@ -7,8 +7,10 @@ import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/utils/cn';
 import { type Setting } from '@/services/config.service';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { HelpTooltip } from './HelpTooltip';
 
 interface SettingFieldProps {
   setting: Setting;
@@ -28,40 +30,21 @@ export function SettingField({ setting, value, onChange, error }: SettingFieldPr
       className: error ? 'border-red-500' : '',
     };
 
-    // Debug logging - always log for important settings
-    if (setting.key === 'FFMPEG_PRESET' || setting.key === 'VIDEO_BITRATE' || setting.key === 'AUDIO_BITRATE' || setting.key === 'VIDEO_RESOLUTION') {
-      console.warn(`🔍 DEBUG ${setting.key}:`, {
-        allowed_values: setting.allowed_values,
-        type: typeof setting.allowed_values,
-        isArray: Array.isArray(setting.allowed_values),
-        length: setting.allowed_values?.length,
-        fullSetting: setting
-      });
-    }
-
-    // Dropdown/Select for settings with allowed_values - PLAIN HTML SELECT
     if (setting.allowed_values && Array.isArray(setting.allowed_values) && setting.allowed_values.length > 0) {
       return (
-        <select
-          id={`${setting.category}.${setting.key}`}
-          value={value || setting.default_value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          className={cn(
-            "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-            error ? 'border-red-500' : ''
-          )}
-        >
-          <option value="">Select {setting.key.toLowerCase()}...</option>
-          {setting.allowed_values.map((option: string) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
+        <Select value={value || setting.default_value || ''} onValueChange={onChange}>
+          <SelectTrigger>
+            <SelectValue placeholder={`Select ${setting.key.toLowerCase()}...`} />
+          </SelectTrigger>
+          <SelectContent>
+            {setting.allowed_values.map((option: string) => (
+              <SelectItem key={option} value={option}>{option}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       );
     }
 
-    // Secret fields (passwords, tokens, API keys)
     if (setting.is_secret) {
       return (
         <div className="relative">
@@ -73,6 +56,7 @@ export function SettingField({ setting, value, onChange, error }: SettingFieldPr
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
+            aria-label={showPassword ? 'Hide value' : 'Show value'}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
           >
             {showPassword ? (
@@ -85,7 +69,6 @@ export function SettingField({ setting, value, onChange, error }: SettingFieldPr
       );
     }
 
-    // Number inputs
     if (setting.value_type === 'integer' || setting.value_type === 'float') {
       return (
         <Input
@@ -99,7 +82,6 @@ export function SettingField({ setting, value, onChange, error }: SettingFieldPr
       );
     }
 
-    // URL inputs
     if (setting.value_type === 'url') {
       return (
         <Input
@@ -110,7 +92,6 @@ export function SettingField({ setting, value, onChange, error }: SettingFieldPr
       );
     }
 
-    // Path inputs
     if (setting.value_type === 'path') {
       return (
         <Input
@@ -121,23 +102,16 @@ export function SettingField({ setting, value, onChange, error }: SettingFieldPr
       );
     }
 
-    // Boolean (handled separately with switch/toggle)
     if (setting.value_type === 'boolean') {
+      const checked = value === 'true' || value === '1'
       return (
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            id={commonProps.id}
-            checked={value === 'true' || value === '1'}
-            onChange={(e) => onChange(e.target.checked ? 'true' : 'false')}
-            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-          />
-          <span className="text-sm text-gray-600">Enabled</span>
+        <div className="flex items-center gap-2">
+          <Switch checked={checked} onCheckedChange={(v) => onChange(v ? 'true' : 'false')} />
+          <span className="text-sm text-gray-600">{checked ? 'Enabled' : 'Disabled'}</span>
         </div>
       );
     }
 
-    // Default: text input
     return (
       <Input
         {...commonProps}
@@ -150,10 +124,15 @@ export function SettingField({ setting, value, onChange, error }: SettingFieldPr
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label htmlFor={`${setting.category}.${setting.key}`}>
-          {setting.key}
-          {setting.is_required && <span className="text-red-500 ml-1">*</span>}
-        </Label>
+        <div className="flex items-center gap-2">
+          <Label htmlFor={`${setting.category}.${setting.key}`}>
+            {setting.key}
+            {setting.is_required && <span className="text-red-500 ml-1">*</span>}
+          </Label>
+          {(setting.description || setting.validation_regex) && (
+            <HelpTooltip text={setting.description || 'Enter a value matching the required format.'} />
+          )}
+        </div>
         {setting.requires_restart && (
           <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
             Restart Required
@@ -170,7 +149,16 @@ export function SettingField({ setting, value, onChange, error }: SettingFieldPr
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       {setting.validation_regex && (
-        <p className="text-xs text-gray-400">Pattern: {setting.validation_regex}</p>
+        <p className="text-xs text-gray-500">Example format: see tooltip. Pattern: <code className="text-[10px]">{setting.validation_regex}</code></p>
+      )}
+      {(setting.value_type === 'integer' || setting.value_type === 'float') && (setting.validation_min !== null || setting.validation_max !== null) && (
+        <p className="text-xs text-gray-500">Allowed range: {setting.validation_min !== null ? setting.validation_min : '—'} to {setting.validation_max !== null ? setting.validation_max : '—'}</p>
+      )}
+      {setting.value_type === 'url' && (
+        <p className="text-xs text-gray-500">Example: https://your-azuracast.example.com</p>
+      )}
+      {setting.value_type === 'path' && (
+        <p className="text-xs text-gray-500">Use absolute paths where possible, e.g., /srv/loops</p>
       )}
     </div>
   );

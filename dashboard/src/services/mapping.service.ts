@@ -9,7 +9,7 @@ export interface TrackMapping {
   id: number;
   artist: string;
   title: string;
-  video_loop: string;
+  filename: string;
   azuracast_song_id?: string | null;
   notes?: string | null;
   created_at: string;
@@ -30,7 +30,7 @@ export interface MappingsResponse {
 export interface MappingCreateData {
   artist: string;
   title: string;
-  video_loop: string;
+  filename: string;
   azuracast_song_id?: string;
   notes?: string;
 }

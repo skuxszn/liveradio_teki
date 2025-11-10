@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/services/auth.service';
+import GlobalStatus from './GlobalStatus';
+import NotificationsCenter from '@/components/notifications/NotificationsCenter';
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -22,15 +24,17 @@ export default function Navbar() {
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Welcome, {user?.username}!</h2>
-          <p className="text-sm text-gray-500">Manage your radio stream</p>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1">
+          <GlobalStatus />
         </div>
-        
-        <Button variant="outline" onClick={handleLogout}>
-          Logout
-        </Button>
+        <div className="flex items-center gap-3">
+          <NotificationsCenter />
+          <span className="text-sm text-gray-600 hidden sm:inline">{user?.username}</span>
+          <Button variant="outline" onClick={handleLogout} aria-label="Logout">
+            Logout
+          </Button>
+        </div>
       </div>
     </header>
   );

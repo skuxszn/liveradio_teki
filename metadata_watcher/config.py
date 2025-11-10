@@ -33,9 +33,9 @@ class Config(BaseSettings):
     ffmpeg_preset: str = "veryfast"
     fade_duration: float = 1.0
 
-    # Video assets
-    loops_path: Path = Path("/app/loops")
-    default_loop: Path = Path("/app/loops/default.mp4")
+    # Video assets (canonical base path)
+    loops_path: Path = Path("/srv/loops")
+    default_loop: Path = Path("/srv/loops/default.mp4")
 
     # Service settings
     watcher_port: int = 9000

@@ -161,3 +161,4 @@ class TestConfig:
         config = Config.from_env()
 
         assert config.rtmp_endpoint == "rtmp://custom-rtmp:1936/live/stream"
+

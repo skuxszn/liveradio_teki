@@ -11,6 +11,7 @@ from datetime import datetime
 
 from database import get_db
 from dependencies import get_current_user, require_operator
+from config import settings
 from services.auth_service import AuthService
 
 router = APIRouter()
@@ -25,7 +26,7 @@ class TrackMappingBase(BaseModel):
 
     artist: str = Field(..., min_length=1, description="Artist name")
     title: str = Field(..., min_length=1, description="Track title")
-    video_loop: str = Field(..., description="Video loop filename")
+    filename: str = Field(..., description="Video loop filename")
     azuracast_song_id: Optional[str] = None
     notes: Optional[str] = None
 
@@ -109,7 +110,7 @@ async def list_mappings(
 
     data_sql = f"""
         SELECT 
-            id, track_key, loop_file_path, azuracast_song_id, notes,
+            id, track_key, filename, loop_file_path, azuracast_song_id, notes,
             created_at, play_count, last_played_at
         FROM track_mappings
         {where_sql}
@@ -128,17 +129,23 @@ async def list_mappings(
         artist = track_parts[0] if len(track_parts) > 0 else "Unknown"
         title = track_parts[1] if len(track_parts) > 1 else track_parts[0]
 
+        # Prefer filename; fall back to basename(loop_file_path)
+        db_filename = row[2]
+        if not db_filename and row[3]:
+            import os
+            db_filename = os.path.basename(row[3])
+
         mappings.append(
             {
                 "id": row[0],
                 "artist": artist,
                 "title": title,
-                "video_loop": row[2],
-                "azuracast_song_id": row[3],
-                "notes": row[4],
-                "created_at": row[5].isoformat() if row[5] else None,
-                "play_count": row[6] or 0,
-                "last_played_at": row[7].isoformat() if row[7] else None,
+                "filename": db_filename,
+                "azuracast_song_id": row[4],
+                "notes": row[5],
+                "created_at": row[6].isoformat() if row[6] else None,
+                "play_count": row[7] or 0,
+                "last_played_at": row[8].isoformat() if row[8] else None,
             }
         )
 
@@ -230,7 +237,7 @@ async def get_mapping(
         text(
             """
         SELECT 
-            id, track_key, loop_file_path, azuracast_song_id, notes,
+            id, track_key, filename, loop_file_path, azuracast_song_id, notes,
             created_at, play_count, last_played_at
         FROM track_mappings
         WHERE id = :id
@@ -249,16 +256,22 @@ async def get_mapping(
     artist = track_parts[0] if len(track_parts) > 0 else "Unknown"
     title = track_parts[1] if len(track_parts) > 1 else track_parts[0]
 
+    # Prefer filename; fall back to basename(loop_file_path)
+    db_filename = result[2]
+    if not db_filename and result[3]:
+        import os
+        db_filename = os.path.basename(result[3])
+
     return {
         "id": result[0],
         "artist": artist,
         "title": title,
-        "video_loop": result[2],
-        "azuracast_song_id": result[3],
-        "notes": result[4],
-        "created_at": result[5].isoformat() if result[5] else None,
-        "play_count": result[6] or 0,
-        "last_played_at": result[7].isoformat() if result[7] else None,
+        "filename": db_filename,
+        "azuracast_song_id": result[4],
+        "notes": result[5],
+        "created_at": result[6].isoformat() if result[6] else None,
+        "play_count": result[7] or 0,
+        "last_played_at": result[8].isoformat() if result[8] else None,
     }
 
 
@@ -284,18 +297,23 @@ async def create_mapping(
     track_key = f"{mapping_data.artist} - {mapping_data.title}"
 
     # Insert mapping
+    # Resolve absolute path for back-compat storage
+    from pathlib import Path as _Path
+    abs_path = str(_Path(settings.loops_path) / mapping_data.filename)
+
     result = db.execute(
         text(
             """
         INSERT INTO track_mappings 
-        (track_key, loop_file_path, azuracast_song_id, notes, created_at, play_count)
-        VALUES (:track_key, :loop_file_path, :azuracast_song_id, :notes, NOW(), 0)
+        (track_key, filename, loop_file_path, azuracast_song_id, notes, created_at, play_count)
+        VALUES (:track_key, :filename, :loop_file_path, :azuracast_song_id, :notes, NOW(), 0)
         RETURNING id, created_at
         """
         ),
         {
             "track_key": track_key,
-            "loop_file_path": mapping_data.video_loop,
+            "filename": mapping_data.filename,
+            "loop_file_path": abs_path,
             "azuracast_song_id": mapping_data.azuracast_song_id,
             "notes": mapping_data.notes,
         },
@@ -319,7 +337,7 @@ async def create_mapping(
         "id": row[0],
         "artist": mapping_data.artist,
         "title": mapping_data.title,
-        "video_loop": mapping_data.video_loop,
+        "filename": mapping_data.filename,
         "azuracast_song_id": mapping_data.azuracast_song_id,
         "notes": mapping_data.notes,
         "created_at": row[1].isoformat(),
@@ -364,12 +382,17 @@ async def update_mapping(
     # Combine artist and title into track_key
     track_key = f"{mapping_data.artist} - {mapping_data.title}"
 
+    # Resolve absolute path for back-compat storage
+    from pathlib import Path as _Path
+    abs_path = str(_Path(settings.loops_path) / mapping_data.filename)
+
     # Update mapping
     db.execute(
         text(
             """
         UPDATE track_mappings
         SET track_key = :track_key,
+            filename = :filename,
             loop_file_path = :loop_file_path,
             azuracast_song_id = :azuracast_song_id,
             notes = :notes
@@ -379,7 +402,8 @@ async def update_mapping(
         {
             "id": mapping_id,
             "track_key": track_key,
-            "loop_file_path": mapping_data.video_loop,
+            "filename": mapping_data.filename,
+            "loop_file_path": abs_path,
             "azuracast_song_id": mapping_data.azuracast_song_id,
             "notes": mapping_data.notes,
         },
@@ -476,18 +500,22 @@ async def bulk_import_mappings(
             for i, row in enumerate(reader, start=1):
                 try:
                     track_key = f"{row.get('artist', '')} - {row.get('title', '')}"
+                    filename = row.get('filename') or row.get('video_loop') or ''
+                    from pathlib import Path as _Path
+                    abs_path = str(_Path(settings.loops_path) / filename) if filename else ''
                     result = db.execute(
                         text(
                             """
                         INSERT INTO track_mappings 
-                        (track_key, loop_file_path, azuracast_song_id, notes, created_at, play_count)
-                        VALUES (:track_key, :loop_file_path, :azuracast_song_id, :notes, NOW(), 0)
+                        (track_key, filename, loop_file_path, azuracast_song_id, notes, created_at, play_count)
+                        VALUES (:track_key, :filename, :loop_file_path, :azuracast_song_id, :notes, NOW(), 0)
                         RETURNING id
                         """
                         ),
                         {
                             "track_key": track_key,
-                            "loop_file_path": row.get("video_loop", ""),
+                            "filename": filename,
+                            "loop_file_path": abs_path,
                             "azuracast_song_id": row.get("azuracast_song_id"),
                             "notes": row.get("notes"),
                         },
@@ -503,18 +531,22 @@ async def bulk_import_mappings(
             for i, item in enumerate(data, start=1):
                 try:
                     track_key = f"{item.get('artist', '')} - {item.get('title', '')}"
+                    filename = item.get('filename') or item.get('video_loop') or ''
+                    from pathlib import Path as _Path
+                    abs_path = str(_Path(settings.loops_path) / filename) if filename else ''
                     result = db.execute(
                         text(
                             """
                         INSERT INTO track_mappings 
-                        (track_key, loop_file_path, azuracast_song_id, notes, created_at, play_count)
-                        VALUES (:track_key, :loop_file_path, :azuracast_song_id, :notes, NOW(), 0)
+                        (track_key, filename, loop_file_path, azuracast_song_id, notes, created_at, play_count)
+                        VALUES (:track_key, :filename, :loop_file_path, :azuracast_song_id, :notes, NOW(), 0)
                         RETURNING id
                         """
                         ),
                         {
                             "track_key": track_key,
-                            "loop_file_path": item.get("video_loop", ""),
+                            "filename": filename,
+                            "loop_file_path": abs_path,
                             "azuracast_song_id": item.get("azuracast_song_id"),
                             "notes": item.get("notes"),
                         },
@@ -609,7 +641,7 @@ async def export_mappings(current_user=Depends(get_current_user), db: Session = 
     result = db.execute(
         text(
             """
-        SELECT track_key, loop_file_path, azuracast_song_id, notes, play_count
+        SELECT track_key, filename, loop_file_path, azuracast_song_id, notes, play_count
         FROM track_mappings
         ORDER BY track_key
         """
@@ -619,12 +651,17 @@ async def export_mappings(current_user=Depends(get_current_user), db: Session = 
     # Generate CSV
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["artist", "title", "video_loop", "azuracast_song_id", "notes", "play_count"])
+    writer.writerow(["artist", "title", "filename", "azuracast_song_id", "notes", "play_count"])
 
     for row in result:
         track_parts = row[0].split(" - ", 1) if row[0] else ["Unknown", "Unknown"]
         artist = track_parts[0] if len(track_parts) > 0 else "Unknown"
         title = track_parts[1] if len(track_parts) > 1 else track_parts[0]
-        writer.writerow([artist, title, row[1], row[2], row[3], row[4]])
+        # Prefer filename; if NULL, fallback to basename of loop_file_path
+        filename = row[1]
+        if not filename and row[2]:
+            import os
+            filename = os.path.basename(row[2])
+        writer.writerow([artist, title, filename, row[3], row[4], row[5]])
 
     return {"csv_data": output.getvalue(), "row_count": len(result)}

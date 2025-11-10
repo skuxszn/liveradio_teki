@@ -8,3 +8,4 @@ chown -R 1000:1000 /app/stream /var/log/radio 2>/dev/null || true
 exec su -s /bin/sh -c "python -m uvicorn metadata_watcher.app:app --host 0.0.0.0 --port 9000" radiouser
 
 
+

@@ -238,8 +238,8 @@ INSERT INTO dashboard_settings (category, key, value_type, description, is_requi
     ('security', 'JWT_SECRET', 'secret', 'JWT signing secret for dashboard authentication', TRUE, TRUE, '', NULL, NULL, NULL, TRUE),
     
     -- Paths
-    ('paths', 'LOOPS_PATH', 'path', 'Video loops directory path', TRUE, FALSE, '/app/loops', NULL, NULL, NULL, TRUE),
-    ('paths', 'DEFAULT_LOOP', 'path', 'Default video loop file path', TRUE, FALSE, '/app/loops/default.mp4', NULL, NULL, NULL, TRUE),
+    ('paths', 'LOOPS_PATH', 'path', 'Video loops directory path', TRUE, FALSE, '/srv/loops', NULL, NULL, NULL, TRUE),
+    ('paths', 'DEFAULT_LOOP', 'path', 'Default video loop file path', TRUE, FALSE, '/srv/loops/default.mp4', NULL, NULL, NULL, TRUE),
     ('paths', 'LOG_PATH', 'path', 'Log files directory path', FALSE, FALSE, '/var/log/radio', NULL, NULL, NULL, FALSE),
     ('paths', 'LOGO_PATH', 'path', 'Logo image file path (PNG with transparency recommended)', FALSE, FALSE, '/app/logos/logo.png', NULL, NULL, NULL, FALSE),
     

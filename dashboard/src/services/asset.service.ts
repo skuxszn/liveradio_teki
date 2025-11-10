@@ -98,6 +98,33 @@ export const assetService = {
     const response = await api.get<AssetStats>('/assets/stats');
     return response.data;
   },
+
+  /**
+   * Increment usage count for an asset.
+   */
+  async incrementUsage(filename: string): Promise<{ success: boolean; usage_count: number; last_used_at: string }>{
+    const response = await api.post(`/assets/${filename}/increment_usage`);
+    return response.data;
+  },
+
+  /**
+   * Get where an asset is used in mappings.
+   */
+  async getUsage(filename: string): Promise<{ filename: string; usage: Array<{ id: number; artist: string; title: string; play_count: number; last_played_at?: string }>; count: number }>{
+    const response = await api.get(`/assets/${filename}/usage`);
+    return response.data;
+  },
+
+  /**
+   * Search assets for typeahead selection.
+   */
+  async search(q: string, page = 1, limit = 20): Promise<{
+    results: Array<{ id: number; filename: string; is_valid: boolean; resolution?: string | null; duration?: number | null; file_size?: number | null }>;
+    pagination: { page: number; limit: number; total: number; pages: number };
+  }> {
+    const response = await api.get('/assets/search', { params: { q, page, limit } });
+    return response.data;
+  },
 };
 
 export default assetService;
