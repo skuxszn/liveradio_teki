@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/liveradio_teki
@@ -45,22 +49,28 @@ jobs:
 
       - name: Remote deploy
         run: |
-          ssh ${{ secrets.PRODUCTION_SSH_USER }}@${{ secrets.PRODUCTION_SSH_HOST }} << 'EOF'
+          ssh ${{ secrets.PRODUCTION_SSH_USER }}@${{ secrets.PRODUCTION_SSH_HOST }} << EOF
           set -e
+          # Login to GHCR
           docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
-          export POSTGRES_USER=radio
-          export POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-          export POSTGRES_DB=radio_db
-          export API_TOKEN=${API_TOKEN}
-          export JWT_SECRET=${JWT_SECRET}
-          export AZURACAST_URL=${AZURACAST_URL}
-          export AZURACAST_API_KEY=${AZURACAST_API_KEY}
-          export AZURACAST_AUDIO_URL=${AZURACAST_AUDIO_URL}
-          export LOG_LEVEL=INFO
-          export DEBUG=false
-          export ENVIRONMENT=production
-          docker compose pull
-          docker compose up -d
+          # Prepare env file for docker compose
+          cat > .env <<EOT
+          POSTGRES_USER=radio
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=radio_db
+          API_TOKEN=${{ secrets.API_TOKEN }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          AZURACAST_URL=${{ secrets.AZURACAST_URL }}
+          AZURACAST_API_KEY=${{ secrets.AZURACAST_API_KEY }}
+          AZURACAST_AUDIO_URL=${{ secrets.AZURACAST_AUDIO_URL }}
+          LOG_LEVEL=INFO
+          DEBUG=false
+          ENVIRONMENT=production
+          EOT
+          # Pull and restart services
+          docker compose --env-file .env pull
+          docker compose --env-file .env up -d
+          rm -f .env
           EOF
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
@@ -69,5 +79,6 @@ jobs:
           AZURACAST_URL: ${{ secrets.AZURACAST_URL }}
           AZURACAST_API_KEY: ${{ secrets.AZURACAST_API_KEY }}
           AZURACAST_AUDIO_URL: ${{ secrets.AZURACAST_AUDIO_URL }}
+
 
 
