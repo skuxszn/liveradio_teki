@@ -53,6 +53,8 @@ pgadmin_data/
 /srv/loops/*.mp4
 /srv/loops/*.avi
 /srv/loops/*.mov
+loops/
+loops/**
 
 # Temporary files
 tmp/
