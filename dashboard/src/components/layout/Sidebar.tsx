@@ -8,7 +8,7 @@ const navigation = [
   { name: 'Stream', to: '/stream', icon: <Radio className="w-4 h-4" /> },
   { name: 'Track Mappings', to: '/mappings', icon: <ListMusic className="w-4 h-4" /> },
   { name: 'Settings', to: '/settings', icon: <Cog className="w-4 h-4" /> },
-  { name: 'Video Assets', to: '/assets', icon: <Film className="w-4 h-4" /> },
+  { name: 'Video Assets', to: '/assets/videos', icon: <Film className="w-4 h-4" /> },
   { name: 'Monitoring', to: '/monitoring', icon: <ActivitySquare className="w-4 h-4" /> },
   { name: 'Users', to: '/users', icon: <Users className="w-4 h-4" />, adminOnly: true },
 ];

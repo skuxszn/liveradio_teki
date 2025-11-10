@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from config import settings
 from database import engine, Base
@@ -41,12 +42,24 @@ async def lifespan(app: FastAPI):
             from database import SessionLocal
 
             db = SessionLocal()
-            db.execute("SELECT 1")
+            db.execute(text("SELECT 1"))
             db.close()
             logger.info("Database connection successful")
         except Exception as db_error:
             logger.warning(f"Database connection issue: {db_error}")
             # Continue anyway - tables might not exist yet
+
+        # Run idempotent startup migrations (safe to run multiple times)
+        try:
+            logger.info("Running startup migrations (idempotent)...")
+            from migrations.add_asset_tags_and_timestamps import upgrade as migrate_assets
+            from migrations.add_video_assets_indexes import upgrade as migrate_asset_indexes
+
+            migrate_assets()
+            migrate_asset_indexes()
+            logger.info("Startup migrations completed")
+        except Exception as mig_error:
+            logger.warning(f"Startup migrations encountered an issue: {mig_error}")
 
         logger.info(f"Dashboard API ready on port {settings.port}")
         yield
@@ -72,6 +85,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

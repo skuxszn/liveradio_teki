@@ -114,9 +114,12 @@ CREATE TABLE IF NOT EXISTS video_assets (
     pixel_format VARCHAR(32),
     is_valid BOOLEAN DEFAULT FALSE,
     validation_errors JSONB,
+    tags JSONB,                              -- Array of strings
     thumbnail_path VARCHAR(1024),
     uploaded_by INTEGER REFERENCES dashboard_users(id),
-    uploaded_at TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    uploaded_at TIMESTAMP DEFAULT NOW(),     -- kept for compatibility
     last_used_at TIMESTAMP,
     usage_count INTEGER DEFAULT 0
 );
