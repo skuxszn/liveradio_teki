@@ -6,6 +6,62 @@ on:
   pull_request:
     branches: [ main, integration/** ]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-tests-unit:
+    name: Python Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r dashboard_api/requirements.txt
+          pip install -r metadata_watcher/requirements.txt
+          pip install -r track_mapper/requirements.txt
+          pip install pytest
+      - name: Run unit tests
+        run: |
+          pytest -q tests/unit
+
+  ui-lint-build:
+    name: UI Lint & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
+      - name: Install deps
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+
+name: CI
+
+on:
+  push:
+    branches: [ main, integration/** ]
+  pull_request:
+    branches: [ main, integration/** ]
+
 permissions:
   contents: read
 
