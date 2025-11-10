@@ -40,3 +40,4 @@ def test_stream_endpoints_require_auth(client):
             response = client.post(endpoint)
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
+

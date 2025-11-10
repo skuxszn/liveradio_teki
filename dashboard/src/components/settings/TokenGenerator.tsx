@@ -8,6 +8,8 @@ import { RefreshCw, Copy, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { configService } from '@/services/config.service';
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
+import { toast } from '@/components/feedback/ToastProvider';
 
 interface TokenGeneratorProps {
   tokenType: 'webhook_secret' | 'api_token' | 'jwt_secret';
@@ -20,12 +22,9 @@ export function TokenGenerator({ tokenType, label, onTokenGenerated }: TokenGene
   const [newToken, setNewToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const generateToken = async () => {
-    if (!confirm(`Are you sure you want to generate a new ${label}? This will invalidate the current token.`)) {
-      return;
-    }
-
     setGenerating(true);
     setError(null);
     setNewToken(null);
@@ -33,12 +32,14 @@ export function TokenGenerator({ tokenType, label, onTokenGenerated }: TokenGene
     try {
       const response = await configService.generateToken(tokenType);
       setNewToken(response.token);
+      toast(`${label} generated successfully`, 'success');
       
       if (onTokenGenerated) {
         onTokenGenerated(response.token);
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to generate token');
+      toast(err.response?.data?.detail || 'Failed to generate token', 'error');
     } finally {
       setGenerating(false);
     }
@@ -54,12 +55,21 @@ export function TokenGenerator({ tokenType, label, onTokenGenerated }: TokenGene
 
   return (
     <div className="space-y-4">
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={`Regenerate ${label}?`}
+        description={`This will invalidate the current ${label.toLowerCase()}. Make sure you update any dependent services.`}
+        variant="destructive"
+        confirmText="Regenerate"
+        onConfirm={() => generateToken()}
+      />
       <div className="flex items-center gap-4">
         <Button
           type="button"
           variant="outline"
           size="sm"
-          onClick={generateToken}
+          onClick={() => setConfirmOpen(true)}
           disabled={generating}
         >
           {generating ? (

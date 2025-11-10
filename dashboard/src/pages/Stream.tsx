@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { streamService } from '@/services/stream.service';
+import { toast } from '@/components/feedback/ToastProvider';
 
 export default function Stream() {
   const [message, setMessage] = useState('');
@@ -18,10 +19,13 @@ export default function Stream() {
     mutationFn: () => streamService.start(),
     onSuccess: () => {
       setMessage('Stream started successfully!');
+      toast('Stream started', 'success')
       queryClient.invalidateQueries({ queryKey: ['stream-status'] });
     },
     onError: (error: any) => {
-      setMessage(`Error: ${error.response?.data?.detail || 'Failed to start stream'}`);
+      const msg = `Error: ${error.response?.data?.detail || 'Failed to start stream'}`
+      setMessage(msg);
+      toast(msg, 'error')
     },
   });
 
@@ -29,10 +33,13 @@ export default function Stream() {
     mutationFn: () => streamService.stop(),
     onSuccess: () => {
       setMessage('Stream stopped successfully!');
+      toast('Stream stopped', 'success')
       queryClient.invalidateQueries({ queryKey: ['stream-status'] });
     },
     onError: (error: any) => {
-      setMessage(`Error: ${error.response?.data?.detail || 'Failed to stop stream'}`);
+      const msg = `Error: ${error.response?.data?.detail || 'Failed to stop stream'}`
+      setMessage(msg);
+      toast(msg, 'error')
     },
   });
 
@@ -40,10 +47,13 @@ export default function Stream() {
     mutationFn: () => streamService.restart(),
     onSuccess: () => {
       setMessage('Stream restarted successfully!');
+      toast('Stream restarted', 'success')
       queryClient.invalidateQueries({ queryKey: ['stream-status'] });
     },
     onError: (error: any) => {
-      setMessage(`Error: ${error.response?.data?.detail || 'Failed to restart stream'}`);
+      const msg = `Error: ${error.response?.data?.detail || 'Failed to restart stream'}`
+      setMessage(msg);
+      toast(msg, 'error')
     },
   });
 

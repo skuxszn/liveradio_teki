@@ -6,6 +6,8 @@ Maps tracks to video loop files with database backing and LRU caching.
 import logging
 import os
 from datetime import datetime
+import random
+from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
 
 from sqlalchemy import create_engine, text, Engine
@@ -100,7 +102,7 @@ class TrackMapper:
         return f"{artist.strip().lower()} - {title.strip().lower()}"
 
     def get_loop(self, artist: str, title: str, song_id: Optional[str] = None) -> str:
-        """Get video loop path for a track.
+        """Get absolute video loop path for a track.
 
         Resolution priority:
         1. Cache lookup (if not expired)
@@ -144,13 +146,22 @@ class TrackMapper:
         except SQLAlchemyError as e:
             logger.error(f"Database error querying loop for {track_key}: {e}")
 
-        # Fallback to default loop
+        # No mapping found: choose a random loop from the base path
+        try:
+            random_loop = self._random_loop_from_base()
+            if random_loop:
+                logger.info(f"Using random loop for {track_key}: {random_loop}")
+                return random_loop
+        except Exception as e:
+            logger.warning(f"Random loop selection failed: {e}")
+
+        # Fallback to default loop if random selection fails
         default_loop = self.get_default_loop()
         logger.info(f"Using default loop for {track_key}: {default_loop}")
         return default_loop
 
     def _query_loop_path(self, track_key: str, song_id: Optional[str] = None) -> Optional[str]:
-        """Query database for loop path.
+        """Query database for loop filename and resolve to absolute path.
 
         Args:
             track_key: Normalized track key
@@ -160,37 +171,45 @@ class TrackMapper:
             Loop file path if found, None otherwise
         """
         with self.engine.connect() as conn:
+            # Helper to resolve a row to absolute path, preferring filename
+            def _resolve_path(row_val: Optional[str], legacy_val: Optional[str]) -> Optional[str]:
+                if row_val:  # filename stored
+                    return os.path.join(self.config.loops_path, row_val)
+                if legacy_val:  # legacy absolute path stored
+                    return legacy_val
+                return None
+
             # Try track key lookup
             result = conn.execute(
                 text(
-                    "SELECT loop_file_path FROM track_mappings "
+                    "SELECT filename, loop_file_path FROM track_mappings "
                     "WHERE track_key = :track_key AND is_active = TRUE"
                 ),
                 {"track_key": track_key},
             )
             row = result.fetchone()
             if row:
-                return row[0]
+                return _resolve_path(row[0], row[1])
 
             # Try song ID lookup
             if song_id:
                 result = conn.execute(
                     text(
-                        "SELECT loop_file_path FROM track_mappings "
+                        "SELECT filename, loop_file_path FROM track_mappings "
                         "WHERE azuracast_song_id = :song_id AND is_active = TRUE"
                     ),
                     {"song_id": song_id},
                 )
                 row = result.fetchone()
                 if row:
-                    return row[0]
+                    return _resolve_path(row[0], row[1])
 
         return None
 
     def add_mapping(
         self,
         track_key: str,
-        loop_path: str,
+        filename: str,
         song_id: Optional[str] = None,
         notes: Optional[str] = None,
     ) -> bool:
@@ -209,27 +228,29 @@ class TrackMapper:
             ValueError: If loop file doesn't exist
             SQLAlchemyError: If database operation fails
         """
-        if not self._validate_file(loop_path):
-            raise ValueError(f"Loop file does not exist: {loop_path}")
+        absolute_path = os.path.join(self.config.loops_path, filename)
+        if not self._validate_file(absolute_path):
+            raise ValueError(f"Loop file does not exist: {absolute_path}")
 
         try:
             with self.engine.connect() as conn:
                 conn.execute(
                     text(
                         "INSERT INTO track_mappings "
-                        "(track_key, loop_file_path, azuracast_song_id, notes) "
-                        "VALUES (:track_key, :loop_path, :song_id, :notes)"
+                        "(track_key, filename, loop_file_path, azuracast_song_id, notes) "
+                        "VALUES (:track_key, :filename, :loop_path, :song_id, :notes)"
                     ),
                     {
                         "track_key": track_key,
-                        "loop_path": loop_path,
+                        "filename": filename,
+                        "loop_path": absolute_path,  # back-compat
                         "song_id": song_id,
                         "notes": notes,
                     },
                 )
                 conn.commit()
-            logger.info(f"Added mapping: {track_key} -> {loop_path}")
-            self._add_to_cache(track_key, loop_path)
+            logger.info(f"Added mapping: {track_key} -> {filename}")
+            self._add_to_cache(track_key, absolute_path)
             return True
         except IntegrityError:
             logger.warning(f"Mapping already exists for: {track_key}")
@@ -241,7 +262,7 @@ class TrackMapper:
     def update_mapping(
         self,
         track_key: str,
-        loop_path: str,
+        filename: str,
         song_id: Optional[str] = None,
         notes: Optional[str] = None,
     ) -> bool:
@@ -260,22 +281,25 @@ class TrackMapper:
             ValueError: If loop file doesn't exist
             SQLAlchemyError: If database operation fails
         """
-        if not self._validate_file(loop_path):
-            raise ValueError(f"Loop file does not exist: {loop_path}")
+        absolute_path = os.path.join(self.config.loops_path, filename)
+        if not self._validate_file(absolute_path):
+            raise ValueError(f"Loop file does not exist: {absolute_path}")
 
         try:
             with self.engine.connect() as conn:
                 result = conn.execute(
                     text(
                         "UPDATE track_mappings "
-                        "SET loop_file_path = :loop_path, "
+                        "SET filename = :filename, "
+                        "    loop_file_path = :loop_path, "
                         "    azuracast_song_id = :song_id, "
                         "    notes = :notes "
                         "WHERE track_key = :track_key AND is_active = TRUE"
                     ),
                     {
                         "track_key": track_key,
-                        "loop_path": loop_path,
+                        "filename": filename,
+                        "loop_path": absolute_path,
                         "song_id": song_id,
                         "notes": notes,
                     },
@@ -283,8 +307,8 @@ class TrackMapper:
                 conn.commit()
 
                 if result.rowcount > 0:
-                    logger.info(f"Updated mapping: {track_key} -> {loop_path}")
-                    self._add_to_cache(track_key, loop_path)
+                    logger.info(f"Updated mapping: {track_key} -> {filename}")
+                    self._add_to_cache(track_key, absolute_path)
                     return True
                 else:
                     logger.warning(f"No mapping found to update: {track_key}")
@@ -390,6 +414,36 @@ class TrackMapper:
             raise FileNotFoundError(f"Default loop file not found: {default_path}")
 
         return default_path
+
+    def _random_loop_from_base(self) -> Optional[str]:
+        """Select a random valid loop file from the canonical loops base path.
+
+        Returns:
+            Absolute path to a random .mp4 file if available, otherwise None.
+        """
+        base = Path(self.config.loops_path)
+        if not base.exists() or not base.is_dir():
+            return None
+
+        # Collect candidate files (.mp4) at top-level and one level deeper
+        candidates: list[Path] = []
+        try:
+            for p in base.glob("*.mp4"):
+                candidates.append(p)
+            for p in base.glob("*/*.mp4"):
+                candidates.append(p)
+        except Exception:
+            # In case of permission or FS errors, ignore and continue with whatever we found
+            pass
+
+        # Remove default loop if it is the only file (we'll still use it if needed later)
+        candidates = [c for c in candidates if c.is_file() and os.access(c, os.R_OK)]
+
+        if not candidates:
+            return None
+
+        chosen = random.choice(candidates)
+        return str(chosen)
 
     def get_stats(self) -> Dict[str, Any]:
         """Get track mapping statistics.

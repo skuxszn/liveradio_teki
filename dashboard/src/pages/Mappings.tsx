@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, Upload, Download, Trash2, Edit } from 'lucide-react';
+import { Plus, Search, Upload, Download, Trash2, Edit, ChevronsUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,7 +26,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { BulkActionToolbar } from '@/components/mappings/BulkActionToolbar';
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
+import { useViewsStore } from '@/store/viewsStore';
 import mappingService, { type TrackMapping, type MappingCreateData } from '@/services/mapping.service';
+import assetService from '@/services/asset.service';
+import { TableSkeleton } from '@/components/skeletons/TableSkeleton';
+import { toast } from '@/components/feedback/ToastProvider';
+import { QueryError } from '@/components/common/QueryError';
 
 export default function Mappings() {
   const queryClient = useQueryClient();
@@ -36,17 +43,31 @@ export default function Mappings() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [editingMapping, setEditingMapping] = useState<TrackMapping | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [confirmBulkOpen, setConfirmBulkOpen] = useState(false);
+  const { views, saveView } = useViewsStore();
+  const [newViewName, setNewViewName] = useState('');
   const [formData, setFormData] = useState<MappingCreateData>({
     artist: '',
     title: '',
-    video_loop: '',
+    filename: '',
     azuracast_song_id: '',
     notes: '',
+  });
+  // Asset search (typeahead)
+  const [assetQuery, setAssetQuery] = useState('');
+  const [assetPage, setAssetPage] = useState(1);
+  const [comboOpen, setComboOpen] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(0);
+  const { data: assetSearch } = useQuery({
+    queryKey: ['asset-search', assetQuery, assetPage],
+    queryFn: () => assetService.search(assetQuery, assetPage, 20),
+    enabled: assetQuery.length >= 1,
   });
   const [importFile, setImportFile] = useState<File | null>(null);
 
   // Fetch mappings
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['mappings', page, search],
     queryFn: () => mappingService.getAll({ page, limit: 50, search }),
   });
@@ -65,10 +86,10 @@ export default function Mappings() {
       queryClient.invalidateQueries({ queryKey: ['mapping-stats'] });
       setDialogOpen(false);
       resetForm();
-      alert('Mapping created successfully!');
+      toast('Mapping created successfully!', 'success');
     },
     onError: (error: any) => {
-      alert(`Failed to create mapping: ${error.response?.data?.detail || error.message}`);
+      toast(`Failed to create mapping: ${error.response?.data?.detail || error.message}`, 'error');
     },
   });
 
@@ -81,22 +102,33 @@ export default function Mappings() {
       setDialogOpen(false);
       setEditingMapping(null);
       resetForm();
-      alert('Mapping updated successfully!');
+      toast('Mapping updated successfully!', 'success');
     },
     onError: (error: any) => {
-      alert(`Failed to update mapping: ${error.response?.data?.detail || error.message}`);
+      toast(`Failed to update mapping: ${error.response?.data?.detail || error.message}`, 'error');
     },
   });
 
-  // Delete mutation
+  // Delete mutation with optimistic update
   const deleteMutation = useMutation({
     mutationFn: (id: number) => mappingService.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['mappings'] });
-      queryClient.invalidateQueries({ queryKey: ['mapping-stats'] });
+    onMutate: async (id: number) => {
+      await queryClient.cancelQueries({ queryKey: ['mappings', page, search] })
+      const prev = queryClient.getQueryData<any>(['mappings', page, search])
+      const next = prev ? { ...prev, mappings: prev.mappings.filter((m: any) => m.id !== id) } : prev
+      if (next) queryClient.setQueryData(['mappings', page, search], next)
+      return { prev }
     },
-    onError: (error: any) => {
-      alert(`Failed to delete mapping: ${error.response?.data?.detail || error.message}`);
+    onError: (error: any, _id, context) => {
+      if (context?.prev) queryClient.setQueryData(['mappings', page, search], context.prev)
+      toast(`Failed to delete mapping: ${error.response?.data?.detail || error.message}`, 'error')
+    },
+    onSuccess: () => {
+      toast('Mapping deleted', 'success')
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['mappings'] })
+      queryClient.invalidateQueries({ queryKey: ['mapping-stats'] })
     },
   });
 
@@ -108,12 +140,10 @@ export default function Mappings() {
       queryClient.invalidateQueries({ queryKey: ['mapping-stats'] });
       setImportDialogOpen(false);
       setImportFile(null);
-      alert(
-        `Import complete!\nImported: ${result.imported_count}\nErrors: ${result.error_count}`
-      );
+      toast(`Import complete: ${result.imported_count} imported, ${result.error_count} errors`, result.error_count ? 'warning' : 'success');
     },
     onError: (error: any) => {
-      alert(`Import failed: ${error.response?.data?.detail || error.message}`);
+      toast(`Import failed: ${error.response?.data?.detail || error.message}`, 'error');
     },
   });
 
@@ -132,7 +162,7 @@ export default function Mappings() {
     setFormData({
       artist: '',
       title: '',
-      video_loop: '',
+      filename: '',
       azuracast_song_id: '',
       notes: '',
     });
@@ -149,7 +179,7 @@ export default function Mappings() {
     setFormData({
       artist: mapping.artist,
       title: mapping.title,
-      video_loop: mapping.video_loop,
+      filename: mapping.filename,
       azuracast_song_id: mapping.azuracast_song_id || '',
       notes: mapping.notes || '',
     });
@@ -157,13 +187,11 @@ export default function Mappings() {
   };
 
   const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this mapping?')) {
-      deleteMutation.mutate(id);
-    }
+    setConfirmDeleteId(id);
   };
 
   const handleSave = () => {
-    if (!formData.artist || !formData.title || !formData.video_loop) {
+    if (!formData.artist || !formData.title || !formData.filename) {
       alert('Artist, Title, and Video Loop are required');
       return;
     }
@@ -177,21 +205,14 @@ export default function Mappings() {
 
   const handleBulkDelete = () => {
     if (selectedMappings.length === 0) {
-      alert('No mappings selected');
+      toast('No mappings selected', 'warning');
       return;
     }
-
-    if (confirm(`Delete ${selectedMappings.length} selected mappings?`)) {
-      bulkDeleteMutation.mutate(selectedMappings);
-    }
+    setConfirmBulkOpen(true);
   };
 
   const handleImport = () => {
-    if (!importFile) {
-      alert('Please select a file');
-      return;
-    }
-
+    if (!importFile) { toast('Please select a file', 'warning'); return; }
     importMutation.mutate(importFile);
   };
 
@@ -206,7 +227,7 @@ export default function Mappings() {
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (error: any) {
-      alert(`Export failed: ${error.message}`);
+      toast(`Export failed: ${error.message}`, 'error');
     }
   };
 
@@ -216,16 +237,31 @@ export default function Mappings() {
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-gray-500">Loading mappings...</div>
-      </div>
-    );
-  }
+  if (isLoading) { return <TableSkeleton rows={10} /> }
 
   return (
     <div className="space-y-6">
+      {error && (
+        <QueryError message={(error as any)?.message} onRetry={() => refetch()} />
+      )}
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(o) => { if (!o) setConfirmDeleteId(null) }}
+        title="Delete mapping"
+        description="This action cannot be undone."
+        variant="destructive"
+        confirmText="Delete"
+        onConfirm={() => { if (confirmDeleteId !== null) { deleteMutation.mutate(confirmDeleteId); setConfirmDeleteId(null) } }}
+      />
+      <ConfirmDialog
+        open={confirmBulkOpen}
+        onOpenChange={setConfirmBulkOpen}
+        title="Delete selected mappings"
+        description={`Delete ${selectedMappings.length} selected mappings? This cannot be undone.`}
+        variant="destructive"
+        confirmText="Delete"
+        onConfirm={() => { bulkDeleteMutation.mutate(selectedMappings); setConfirmBulkOpen(false) }}
+      />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Track Mappings</h1>
@@ -233,6 +269,31 @@ export default function Mappings() {
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <select
+              aria-label="Saved views"
+              className="h-10 border rounded px-2 text-sm"
+              onChange={(e) => {
+                const v = views.find(v => v.id === e.target.value)
+                if (v) { setSearch(v.params.search || ''); setPage(v.params.page || 1) }
+              }}
+            >
+              <option value="">Saved views…</option>
+              {views.map((v) => (
+                <option key={v.id} value={v.id}>{v.name}</option>
+              ))}
+            </select>
+            <input
+              aria-label="New view name"
+              value={newViewName}
+              onChange={(e) => setNewViewName(e.target.value)}
+              placeholder="View name"
+              className="h-10 border rounded px-2 text-sm"
+            />
+            <Button variant="outline" onClick={() => { if (newViewName.trim()) { saveView(newViewName.trim(), { search, page }); setNewViewName(''); toast('View saved', 'success') } }}>
+              Save View
+            </Button>
+          </div>
           <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
             <Upload className="w-4 h-4 mr-2" />
             Import
@@ -247,6 +308,8 @@ export default function Mappings() {
           </Button>
         </div>
       </div>
+
+      <BulkActionToolbar count={selectedMappings.length} onDelete={handleBulkDelete} />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -331,7 +394,8 @@ export default function Mappings() {
                         setSelectedMappings([]);
                       }
                     }}
-                    className="w-4 h-4"
+                    aria-label="Select all"
+                    className="w-5 h-5"
                   />
                 </TableHead>
                 <TableHead>Artist</TableHead>
@@ -356,13 +420,14 @@ export default function Mappings() {
                         type="checkbox"
                         checked={selectedMappings.includes(mapping.id)}
                         onChange={() => toggleSelection(mapping.id)}
-                        className="w-4 h-4"
+                        aria-label={`Select ${mapping.artist} - ${mapping.title}`}
+                        className="w-5 h-5"
                       />
                     </TableCell>
                     <TableCell className="font-medium">{mapping.artist}</TableCell>
                     <TableCell>{mapping.title}</TableCell>
                     <TableCell className="text-sm text-gray-600">
-                      {mapping.video_loop}
+                      {mapping.filename}
                     </TableCell>
                     <TableCell className="text-right">{mapping.play_count}</TableCell>
                     <TableCell className="text-right">
@@ -370,6 +435,7 @@ export default function Mappings() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          aria-label={`Edit mapping ${mapping.artist} - ${mapping.title}`}
                           onClick={() => handleEdit(mapping)}
                         >
                           <Edit className="w-4 h-4" />
@@ -377,6 +443,7 @@ export default function Mappings() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          aria-label={`Delete mapping ${mapping.artist} - ${mapping.title}`}
                           onClick={() => handleDelete(mapping.id)}
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
@@ -447,14 +514,89 @@ export default function Mappings() {
               />
             </div>
 
-            <div>
-              <Label htmlFor="video_loop">Video Loop *</Label>
+            <div className="relative">
+              <Label htmlFor="filename">Video Loop *</Label>
               <Input
-                id="video_loop"
-                value={formData.video_loop}
-                onChange={(e) => setFormData({ ...formData, video_loop: e.target.value })}
-                placeholder="video.mp4"
+                id="filename"
+                value={formData.filename}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setFormData({ ...formData, filename: v });
+                  setAssetQuery(v);
+                  setAssetPage(1);
+                  setComboOpen(true);
+                  setHighlightIndex(0);
+                }}
+                placeholder="Type to search…"
+                role="combobox"
+                aria-expanded={comboOpen}
+                aria-controls="asset-combobox-list"
+                onFocus={() => setComboOpen(true)}
+                onKeyDown={(e) => {
+                  if (!assetSearch?.results?.length) return;
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setComboOpen(true);
+                    setHighlightIndex((i) => Math.min(i + 1, assetSearch.results.length - 1));
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setHighlightIndex((i) => Math.max(i - 1, 0));
+                  } else if (e.key === 'Enter' && comboOpen) {
+                    e.preventDefault();
+                    const pick = assetSearch.results[highlightIndex];
+                    if (pick) {
+                      setFormData({ ...formData, filename: pick.filename });
+                      setComboOpen(false);
+                    }
+                  } else if (e.key === 'Escape') {
+                    setComboOpen(false);
+                  }
+                }}
               />
+              <button
+                type="button"
+                aria-label="Toggle assets"
+                className="absolute right-2 top-8 text-gray-500 hover:text-gray-700"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setComboOpen((o) => !o)}
+              >
+                <ChevronsUpDown className="w-4 h-4" />
+              </button>
+              {comboOpen && assetSearch?.results && (
+                <div id="asset-combobox-list" role="listbox" className="absolute z-10 mt-1 w-full max-h-56 overflow-auto rounded border bg-white shadow">
+                  {assetSearch.results.length === 0 && (
+                    <div className="p-2 text-sm text-gray-500">No matches</div>
+                  )}
+                  {assetSearch.results.map((r, idx) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${idx === highlightIndex ? 'bg-gray-100' : ''}`}
+                      role="option"
+                      aria-selected={idx === highlightIndex}
+                      onMouseEnter={() => setHighlightIndex(idx)}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => { setFormData({ ...formData, filename: r.filename }); setComboOpen(false); }}
+                    >
+                      <span className="font-mono">{r.filename}</span>
+                      {!r.is_valid && <span className="text-red-500 ml-2">(invalid)</span>}
+                    </button>
+                  ))}
+                  {assetSearch.pagination && assetSearch.pagination.pages > 1 && (
+                    <div className="flex items-center justify-between px-2 py-1 border-t bg-gray-50">
+                      <Button variant="outline" size="sm" onClick={() => setAssetPage(Math.max(1, assetPage - 1))} disabled={assetPage === 1}>
+                        Prev
+                      </Button>
+                      <div className="text-xs text-gray-600">
+                        Page {assetPage} of {assetSearch.pagination.pages}
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => setAssetPage(Math.min(assetSearch.pagination.pages, assetPage + 1))} disabled={assetPage === assetSearch.pagination.pages}>
+                        Next
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
@@ -518,7 +660,7 @@ export default function Mappings() {
             <div className="text-sm text-gray-600">
               <p className="font-medium mb-1">CSV Format:</p>
               <code className="block bg-gray-50 p-2 rounded text-xs">
-                artist,title,video_loop,azuracast_song_id,notes
+                artist,title,filename,azuracast_song_id,notes
               </code>
             </div>
           </div>

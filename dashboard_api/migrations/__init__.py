@@ -1,1 +1,2 @@
 """Database migrations for dashboard."""
+

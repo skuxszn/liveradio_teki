@@ -156,3 +156,4 @@ def format_duration(seconds: float) -> str:
         parts.append(f"{secs}s")
 
     return " ".join(parts)
+

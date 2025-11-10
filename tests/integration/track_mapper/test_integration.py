@@ -344,3 +344,4 @@ class TestTrackMapperIntegration:
             row = result.fetchone()
             # Should be at least 1 (incremented by get_loop)
             assert row[0] >= 1
+

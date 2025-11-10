@@ -1,31 +1,55 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { streamService } from '@/services/stream.service';
+import { CardSkeleton } from '@/components/skeletons/CardSkeleton';
+import { Radio, Music, Timer, MonitorCheck } from 'lucide-react';
+import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist';
+import { QueryError } from '@/components/common/QueryError';
 
 export default function Dashboard() {
-  const { data: streamStatus, isLoading } = useQuery({
+  const { data: streamStatus, isLoading, error, refetch } = useQuery({
     queryKey: ['stream-status'],
     queryFn: () => streamService.getStatus(),
     refetchInterval: 5000, // Poll every 5 seconds
   });
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-gray-500">Operational overview and quick actions</p>
+        </div>
+        <OnboardingChecklist />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-gray-500">Overview of your radio stream</p>
+        <p className="text-gray-500">Operational overview and quick actions</p>
       </div>
+
+      {error && (
+        <QueryError message={(error as any)?.message} onRetry={() => refetch()} />
+      )}
+
+      <OnboardingChecklist />
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Stream Status</CardTitle>
-            <span className="text-2xl">📻</span>
+            <Radio className="w-5 h-5 text-gray-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -44,7 +68,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Current Track</CardTitle>
-            <span className="text-2xl">🎵</span>
+            <Music className="w-5 h-5 text-gray-600" />
           </CardHeader>
           <CardContent>
             <div className="text-sm font-semibold truncate">
@@ -59,7 +83,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Uptime</CardTitle>
-            <span className="text-2xl">⏱️</span>
+            <Timer className="w-5 h-5 text-gray-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -74,7 +98,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">System</CardTitle>
-            <span className="text-2xl">💻</span>
+            <MonitorCheck className="w-5 h-5 text-gray-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">OK</div>

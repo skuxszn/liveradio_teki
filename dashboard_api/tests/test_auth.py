@@ -68,3 +68,4 @@ def test_logout(client, test_user):
     )
 
     assert response.status_code == status.HTTP_200_OK
+

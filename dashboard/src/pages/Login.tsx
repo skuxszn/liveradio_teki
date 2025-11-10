@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/services/auth.service';
+import { toast } from '@/components/feedback/ToastProvider';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -35,7 +36,9 @@ export default function Login() {
       login(tokens.access_token, tokens.refresh_token, user);
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed. Please check your credentials.');
+      const msg = err.response?.data?.detail || 'Login failed. Please check your credentials.'
+      setError(msg);
+      toast(msg, 'error')
       // Clear any partial auth state
       localStorage.removeItem('access_token');
       localStorage.removeItem('refresh_token');

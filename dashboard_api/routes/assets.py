@@ -1,6 +1,6 @@
 """Video asset management routes."""
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -16,12 +16,14 @@ from database import get_db
 from dependencies import get_current_user, require_operator
 from models.asset import VideoAsset, VideoAssetResponse
 from services.auth_service import AuthService
+from sqlalchemy import text
+from config import settings
 
 router = APIRouter()
 
 # Configuration
-# Upload directly to /srv/loops which is mounted from host ./loops directory
-UPLOAD_DIR = "/srv/loops"
+# Upload directly to canonical base path which is mounted from host ./loops directory
+UPLOAD_DIR = str(settings.loops_path)
 THUMBNAILS_DIR = "/tmp/thumbnails"
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 
@@ -46,6 +48,54 @@ async def list_assets(current_user=Depends(get_current_user), db: Session = Depe
     """
     assets = db.query(VideoAsset).order_by(VideoAsset.uploaded_at.desc()).all()
     return assets
+
+
+@router.get("/search", response_model=dict)
+async def search_assets(
+    q: Optional[str] = Query(None, description="Search text for filename contains"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Search assets by filename with pagination.
+
+    Returns a minimal payload suitable for typeahead UIs.
+    """
+    query = db.query(VideoAsset)
+    if q:
+        like = f"%{q.lower()}%"
+        query = query.filter(func.lower(VideoAsset.filename).like(like))
+
+    total = query.count()
+    items = (
+        query.order_by(VideoAsset.uploaded_at.desc())
+        .offset((page - 1) * limit)
+        .limit(limit)
+        .all()
+    )
+
+    results = [
+        {
+            "id": a.id,
+            "filename": a.filename,
+            "is_valid": a.is_valid,
+            "resolution": a.resolution,
+            "duration": a.duration,
+            "file_size": a.file_size,
+        }
+        for a in items
+    ]
+
+    return {
+        "results": results,
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": (total + limit - 1) // limit,
+        },
+    }
 
 
 @router.post("/upload", response_model=VideoAssetResponse, status_code=status.HTTP_201_CREATED)
@@ -75,15 +125,25 @@ async def upload_asset(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Only MP4 files are allowed"
         )
 
-    # Check if file already exists
-    existing = db.query(VideoAsset).filter(VideoAsset.filename == file.filename).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=f"File already exists: {file.filename}"
-        )
+    # Normalize filename: lowercase, underscores, strip spaces
+    original_name = file.filename
+    name, ext = os.path.splitext(original_name)
+    normalized = name.strip().lower().replace(' ', '_') + ext.lower()
+
+    # Collision-safe rename: ensure neither DB nor filesystem has it
+    final_name = normalized
+    counter = 1
+    while True:
+        existing_db = db.query(VideoAsset).filter(VideoAsset.filename == final_name).first()
+        existing_fs = os.path.exists(os.path.join(UPLOAD_DIR, final_name))
+        if not existing_db and not existing_fs:
+            break
+        stem, ext2 = os.path.splitext(normalized)
+        final_name = f"{stem}-{counter}{ext2}"
+        counter += 1
 
     # Save file
-    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    file_path = os.path.join(UPLOAD_DIR, final_name)
 
     try:
         with open(file_path, "wb") as buffer:
@@ -106,7 +166,7 @@ async def upload_asset(
 
         # Create asset record
         asset = VideoAsset(
-            filename=file.filename,
+            filename=final_name,
             file_path=file_path,
             file_size=file_size,
             is_valid=is_valid,
@@ -125,7 +185,7 @@ async def upload_asset(
             action="asset_uploaded",
             resource_type="asset",
             resource_id=str(asset.id),
-            details={"filename": file.filename, "size": file_size},
+            details={"filename": final_name, "size": file_size},
             ip_address=request.client.host if request.client else None,
         )
 
@@ -144,6 +204,7 @@ async def upload_asset(
 async def delete_asset(
     request: Request,
     filename: str,
+    force: bool = Query(False, description="Force delete even if referenced by mappings"),
     current_user=Depends(require_operator),
     db: Session = Depends(get_db),
 ):
@@ -163,6 +224,20 @@ async def delete_asset(
     if not asset:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Asset not found: {filename}"
+        )
+
+    # Prevent deletion if referenced by any mapping unless forced
+    ref_count = db.execute(
+        text(
+            "SELECT COUNT(1) FROM track_mappings WHERE filename = :fn OR loop_file_path LIKE :lp"
+        ),
+        {"fn": filename, "lp": f"%/{filename}"},
+    ).scalar() or 0
+
+    if ref_count > 0 and not force:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Asset is referenced by {ref_count} mapping(s). Pass force=true to override.",
         )
 
     # Delete file
@@ -263,6 +338,29 @@ async def validate_asset(
 
             asset.is_valid = True
             asset.validation_errors = None
+            # Generate thumbnail (optional)
+            try:
+                thumb_path = os.path.join(THUMBNAILS_DIR, f"{os.path.splitext(asset.filename)[0]}.jpg")
+                subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-y",
+                        "-i",
+                        asset.file_path,
+                        "-frames:v",
+                        "1",
+                        "-q:v",
+                        "2",
+                        thumb_path,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                if os.path.exists(thumb_path):
+                    asset.thumbnail_path = thumb_path
+            except Exception:
+                pass
         else:
             asset.is_valid = False
             asset.validation_errors = {"error": "FFprobe failed", "stderr": result.stderr}
@@ -303,6 +401,59 @@ async def validate_asset(
         },
         "validation_errors": asset.validation_errors,
     }
+
+
+@router.post("/{filename}/increment_usage")
+async def increment_usage(
+    request: Request,
+    filename: str,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Increment usage_count and update last_used_at for an asset by filename."""
+    asset = db.query(VideoAsset).filter(VideoAsset.filename == filename).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail=f"Asset not found: {filename}")
+
+    asset.usage_count = (asset.usage_count or 0) + 1
+    asset.last_used_at = datetime.utcnow()
+    db.commit()
+    db.refresh(asset)
+    return {"success": True, "usage_count": asset.usage_count, "last_used_at": asset.last_used_at}
+
+
+@router.get("/{filename}/usage", response_model=dict)
+async def get_asset_usage(
+    filename: str, current_user=Depends(get_current_user), db: Session = Depends(get_db)
+):
+    """List mappings referencing a given asset filename."""
+    rows = db.execute(
+        text(
+            """
+        SELECT id, track_key, azuracast_song_id, play_count, last_played_at
+        FROM track_mappings
+        WHERE filename = :fn OR loop_file_path LIKE :lp
+        ORDER BY play_count DESC
+        """
+        ),
+        {"fn": filename, "lp": f"%/{filename}"},
+    ).fetchall()
+
+    usage = []
+    for r in rows:
+        track_parts = r[1].split(" - ", 1) if r[1] else ["Unknown", "Unknown"]
+        usage.append(
+            {
+                "id": r[0],
+                "artist": track_parts[0],
+                "title": track_parts[1] if len(track_parts) > 1 else track_parts[0],
+                "azuracast_song_id": r[2],
+                "play_count": r[3] or 0,
+                "last_played_at": r[4].isoformat() if r[4] else None,
+            }
+        )
+
+    return {"filename": filename, "usage": usage, "count": len(usage)}
 
 
 @router.get("/{filename}/thumbnail")

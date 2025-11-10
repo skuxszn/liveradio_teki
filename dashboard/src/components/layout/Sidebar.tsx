@@ -1,15 +1,16 @@
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/utils/cn';
 import { useAuthStore } from '@/store/authStore';
+import { LayoutDashboard, Radio, ListMusic, Settings as Cog, Film, ActivitySquare, Users } from 'lucide-react';
 
 const navigation = [
-  { name: 'Dashboard', to: '/', icon: '📊' },
-  { name: 'Stream Control', to: '/stream', icon: '📻' },
-  { name: 'Track Mappings', to: '/mappings', icon: '🎵' },
-  { name: 'Settings', to: '/settings', icon: '⚙️' },
-  { name: 'Video Assets', to: '/assets', icon: '🎬' },
-  { name: 'Monitoring', to: '/monitoring', icon: '📈' },
-  { name: 'Users', to: '/users', icon: '👥', adminOnly: true },
+  { name: 'Dashboard', to: '/', icon: <LayoutDashboard className="w-4 h-4" /> },
+  { name: 'Stream', to: '/stream', icon: <Radio className="w-4 h-4" /> },
+  { name: 'Track Mappings', to: '/mappings', icon: <ListMusic className="w-4 h-4" /> },
+  { name: 'Settings', to: '/settings', icon: <Cog className="w-4 h-4" /> },
+  { name: 'Video Assets', to: '/assets', icon: <Film className="w-4 h-4" /> },
+  { name: 'Monitoring', to: '/monitoring', icon: <ActivitySquare className="w-4 h-4" /> },
+  { name: 'Users', to: '/users', icon: <Users className="w-4 h-4" />, adminOnly: true },
 ];
 
 export default function Sidebar() {
@@ -43,7 +44,7 @@ export default function Sidebar() {
                 )
               }
             >
-              <span className="text-xl">{item.icon}</span>
+              <span aria-hidden className="text-xl">{item.icon}</span>
               {item.name}
             </NavLink>
           );

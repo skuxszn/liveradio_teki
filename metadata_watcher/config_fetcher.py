@@ -115,8 +115,8 @@ class ConfigFetcher:
             logo_position=encoding.get("LOGO_POSITION", "top-right"),
             logo_opacity=float(encoding.get("LOGO_OPACITY", "0.8")),
             # Assets (from dashboard "paths" category)
-            loops_path=Path(paths.get("LOOPS_PATH", "/app/loops")),
-            default_loop=Path(paths.get("DEFAULT_LOOP", "/app/loops/default.mp4")),
+            loops_path=Path(paths.get("LOOPS_PATH", "/srv/loops")),
+            default_loop=Path(paths.get("DEFAULT_LOOP", "/srv/loops/default.mp4")),
             logo_path=paths.get("LOGO_PATH", "/app/logos/logo.png"),
             # Service (from dashboard "advanced" category)
             watcher_port=int(os.getenv("WATCHER_PORT", "9000")),  # Keep from env

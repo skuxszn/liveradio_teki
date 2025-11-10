@@ -48,3 +48,4 @@ def setup_exception_handlers(app: FastAPI) -> None:
                 "message": str(exc) if app.debug else "An error occurred",
             },
         )
+

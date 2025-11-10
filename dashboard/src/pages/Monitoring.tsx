@@ -9,6 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import metricsService from '@/services/metrics.service';
 import { formatDistanceToNow } from 'date-fns';
+import { CardSkeleton } from '@/components/skeletons/CardSkeleton';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import LogsTab from '@/components/monitoring/LogsTab';
+import { useSearchParams } from 'react-router-dom';
+import { QueryError } from '@/components/common/QueryError';
 
 export default function Monitoring() {
   // Fetch current metrics (refresh every 10 seconds)
@@ -55,16 +60,33 @@ export default function Monitoring() {
     return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
+  const isLoading = !current || !history || !summary || !activityData;
+  const isError = false; // placeholder for finer-grained error checks
+  const [sp] = useSearchParams();
+  const initialTab = sp.get('tab') === 'logs' ? 'logs' : 'metrics'
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Monitoring</h1>
-        <p className="text-gray-500">System metrics and activity</p>
+        <p className="text-gray-500">System telemetry, metrics, and activity</p>
       </div>
 
-      {/* Current Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
+      <Tabs defaultValue={initialTab} className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="metrics">Metrics</TabsTrigger>
+          <TabsTrigger value="logs">Logs</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="metrics" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {isLoading ? (<>
+              <CardSkeleton />
+              <CardSkeleton />
+              <CardSkeleton />
+              <CardSkeleton />
+            </>) : (<>
+            <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">CPU Usage</CardTitle>
             {current && getTrendIndicator(current.system.cpu_percent)}
@@ -121,9 +143,14 @@ export default function Monitoring() {
             </p>
           </CardContent>
         </Card>
-      </div>
+        </>)}
+          </div>
 
-      {/* Charts */}
+          {/* Error banner for metrics fetch failures (simplified) */}
+          {isError && (
+            <QueryError message="Failed to load metrics" onRetry={() => window.location.reload()} />
+          )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -242,8 +269,6 @@ export default function Monitoring() {
           </Card>
         </div>
       )}
-
-      {/* Activity Feed */}
       <Card>
         <CardHeader>
           <CardTitle>Recent Activity</CardTitle>
@@ -291,6 +316,12 @@ export default function Monitoring() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="logs">
+          <LogsTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

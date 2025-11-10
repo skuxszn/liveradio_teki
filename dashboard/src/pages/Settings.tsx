@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Save, RotateCcw, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,8 @@ import { SettingField } from '@/components/settings/SettingField';
 import { ConnectionTester } from '@/components/settings/ConnectionTester';
 import { TokenGenerator } from '@/components/settings/TokenGenerator';
 import configService, { type Setting } from '@/services/config.service';
+import { ChangeSummaryDialog } from '@/components/settings/ChangeSummaryDialog';
+import { toast } from '@/components/feedback/ToastProvider';
 
 interface SettingValues {
   [key: string]: string;
@@ -25,11 +28,15 @@ interface SettingErrors {
 
 export default function Settings() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('stream');
+  const [sp] = useSearchParams();
+  const initialTab = sp.get('tab') || 'stream'
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [settingValues, setSettingValues] = useState<SettingValues>({});
   const [errors, setErrors] = useState<SettingErrors>({});
   const [isDirty, setIsDirty] = useState(false);
   const [requiresRestart, setRequiresRestart] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryChanges, setSummaryChanges] = useState<Array<{ key: string; from: string; to: string }>>([]);
 
   // Fetch all settings
   const { data: settings, isLoading } = useQuery({
@@ -59,14 +66,14 @@ export default function Settings() {
       setIsDirty(false);
 
       if (result.error_count === 0) {
-        alert('Settings updated successfully!');
+        toast('Settings updated successfully!', 'success');
       } else {
-        alert(`Settings updated with ${result.error_count} errors. Check the console for details.`);
+        toast(`Settings updated with ${result.error_count} errors. See console for details.`, 'warning');
         console.error('Update errors:', result.errors);
       }
     },
     onError: (error: any) => {
-      alert(`Failed to update settings: ${error.response?.data?.detail || error.message}`);
+      toast(`Failed to update settings: ${error.response?.data?.detail || error.message}`, 'error');
     },
   });
 
@@ -156,7 +163,7 @@ export default function Settings() {
     }
 
     if (hasErrors) {
-      alert('Please fix validation errors before saving');
+      toast('Please fix validation errors before saving', 'warning');
       return;
     }
 
@@ -175,11 +182,24 @@ export default function Settings() {
     }
 
     if (Object.keys(updates).length === 0) {
-      alert('No changes to save');
+      toast('No changes to save', 'warning');
       return;
     }
 
-    updateMutation.mutate(updates);
+    // Build change summary and open dialog
+    const changes: Array<{ key: string; from: string; to: string }> = [];
+    if (settings) {
+      settings.forEach((setting) => {
+        const k = `${setting.category}.${setting.key}`;
+        const newValue = settingValues[k];
+        const oldValue = setting.value || setting.default_value || '';
+        if (newValue !== oldValue) {
+          changes.push({ key: k, from: oldValue || '', to: newValue || '' });
+        }
+      });
+    }
+    setSummaryChanges(changes);
+    setSummaryOpen(true);
   };
 
   // Handle reset
@@ -216,6 +236,16 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
+      <ChangeSummaryDialog
+        open={summaryOpen}
+        onOpenChange={setSummaryOpen}
+        changes={summaryChanges}
+        onConfirm={() => {
+          const updates: Record<string, string> = {};
+          summaryChanges.forEach((c) => { updates[c.key] = c.to; })
+          updateMutation.mutate(updates)
+        }}
+      />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Settings</h1>

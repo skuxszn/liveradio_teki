@@ -31,7 +31,7 @@ COPY track_mapper/ /app/track_mapper/
 WORKDIR /app/metadata_watcher
 
 # Create directories for logs, loops, and stream control
-RUN mkdir -p /var/log/radio /srv/loops /app/loops /var/run/stream \
+RUN mkdir -p /var/log/radio /srv/loops /var/run/stream \
     && chown -R radiouser:radiouser /var/log/radio /srv/loops /app /var/run/stream
 
 # Remain root for entrypoint ownership fix, then drop to radiouser

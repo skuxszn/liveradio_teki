@@ -343,3 +343,4 @@ class TestErrorHandling:
             # Immediate second spawn should be blocked by cooldown
             result2 = await ffmpeg_manager._spawn_process(track_key, loop_path, ["test"])
             assert result2 is None
+
