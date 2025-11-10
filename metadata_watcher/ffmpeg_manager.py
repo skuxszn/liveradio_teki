@@ -111,7 +111,7 @@ class FFmpegManager:
         Args:
             config: Application configuration.
         """
-        self.config = config
+        self._config = config
         self.current_process: Optional[FFmpegProcess] = None
         self.process_lock = asyncio.Lock()
         self.restart_attempts: Dict[str, int] = {}
@@ -134,6 +134,17 @@ class FFmpegManager:
             logger.info(f"Log directory initialized: {self.log_dir}")
         except Exception as e:
             logger.warning(f"Failed to create directories: {e}")
+
+    @property
+    def config(self) -> Config:
+        """Get current config (allows dynamic updates from config reload)."""
+        return self._config
+    
+    @config.setter
+    def config(self, value: Config):
+        """Update config (called during config reload)."""
+        self._config = value
+        logger.info("FFmpegManager config updated")
 
     async def switch_track(
         self,

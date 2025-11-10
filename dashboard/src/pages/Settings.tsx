@@ -60,13 +60,22 @@ export default function Settings() {
   const updateMutation = useMutation({
     mutationFn: (updates: Record<string, string>) =>
       configService.bulkUpdate(updates),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       // Invalidate settings query
       queryClient.invalidateQueries({ queryKey: ['settings'] });
       setIsDirty(false);
 
       if (result.error_count === 0) {
         toast('Settings updated successfully!', 'success');
+        
+        // Trigger immediate config reload on metadata-watcher
+        try {
+          await configService.reloadMetadataWatcherConfig();
+          console.log('Config reloaded on all services');
+        } catch (reloadError) {
+          console.warn('Failed to reload service configs (non-critical):', reloadError);
+          // Don't show error to user since settings were saved successfully
+        }
       } else {
         toast(`Settings updated with ${result.error_count} errors. See console for details.`, 'warning');
         console.error('Update errors:', result.errors);

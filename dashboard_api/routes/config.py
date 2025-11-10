@@ -449,3 +449,95 @@ async def generate_security_token(
         "generated_at": datetime.utcnow().isoformat(),
         "message": f"New {token_type} generated successfully. Please update your configuration.",
     }
+
+
+@router.post("/reload-services")
+async def reload_service_configs(
+    request: Request,
+    current_user=Depends(require_operator),
+    db: Session = Depends(get_db),
+):
+    """Trigger immediate config reload on all services.
+    
+    This forces metadata-watcher and other services to fetch the latest
+    configuration from the database immediately instead of waiting for
+    the automatic 60-second refresh cycle.
+    
+    Args:
+        request: FastAPI request.
+        current_user: Current authenticated user (operator or admin).
+        db: Database session.
+        
+    Returns:
+        dict: Reload results from all services.
+        
+    Raises:
+        HTTPException: If reload fails.
+    """
+    import httpx
+    import os
+    from datetime import datetime
+    
+    # Get API token for service-to-service communication
+    api_token = os.getenv("API_TOKEN", "")
+    if not api_token:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="API_TOKEN not configured"
+        )
+    
+    results = {}
+    overall_success = True
+    
+    # Reload metadata-watcher config
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                "http://metadata-watcher:9000/config/reload",
+                headers={"Authorization": f"Bearer {api_token}"}
+            )
+            
+            if response.status_code == 200:
+                results["metadata-watcher"] = {
+                    "success": True,
+                    "data": response.json()
+                }
+            else:
+                results["metadata-watcher"] = {
+                    "success": False,
+                    "error": f"HTTP {response.status_code}: {response.text}"
+                }
+                overall_success = False
+                
+    except httpx.TimeoutException:
+        results["metadata-watcher"] = {
+            "success": False,
+            "error": "Timeout - service not responding"
+        }
+        overall_success = False
+    except Exception as e:
+        results["metadata-watcher"] = {
+            "success": False,
+            "error": str(e)
+        }
+        overall_success = False
+    
+    # Log the reload action
+    auth_service = AuthService(db)
+    auth_service.log_audit(
+        user_id=current_user.id,
+        action="config_reload_triggered",
+        resource_type="services",
+        details={
+            "success": overall_success,
+            "services": list(results.keys())
+        },
+        ip_address=request.client.host if request.client else None,
+    )
+    
+    return {
+        "status": "success" if overall_success else "partial_success",
+        "message": "Config reload triggered on all services" if overall_success else "Some services failed to reload",
+        "results": results,
+        "triggered_at": datetime.utcnow().isoformat(),
+    }
